@@ -82,9 +82,9 @@ class CustomCurriculumCfg:
             "num_steps": 3000,  # 통일된 duration
             "warmup_steps": 500,  # Warmup 기간
             "initial_friction_range": (0.8, 0.8),  # 실제 Go2 기본값
-            "final_friction_range": (0.3, 2.0),
+            "final_friction_range": (0.5, 1.1),
             "initial_restitution_range": (0.0, 0.0),  # 실제 Go2 기본값
-            "final_restitution_range": (0.0, 0.1),
+            "final_restitution_range": (0.0, 0.0),
         }
     )
     
@@ -96,7 +96,7 @@ class CustomCurriculumCfg:
             "num_steps": 3000,  # 통일된 duration
             "warmup_steps": 500,  # Warmup 기간
             "initial_force_range": (0.0, 0.0),  # 실제 Go2 기본값
-            "final_force_range": (-20.0, 20.0),
+            "final_force_range": (-10.0, 10.0),
             "initial_torque_range": (0.0, 0.0),  # 실제 Go2 기본값
             "final_torque_range": (-10.0, 10.0),
         }
@@ -110,8 +110,8 @@ class CustomCurriculumCfg:
             "num_steps": 3000,  # 통일된 duration
             "warmup_steps": 500,  # Warmup 기간
             "initial_velocity_range": {"x": (0.0, 0.0), "y": (0.0, 0.0)},  # Go2에서 push_robot=None이므로 0부터 시작
-            "final_velocity_range": {"x": (-2.0, 2.0), "y": (-2.0, 2.0)},
-            "initial_interval": (15.0, 20.0),
+            "final_velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)},
+            "initial_interval": (11.0, 20.0),
             "final_interval": (5.0, 10.0),
         }
     )
@@ -152,7 +152,7 @@ class CustomCurriculumCfg:
             "num_steps": 2000,  # Curriculum 지속 기간
             "warmup_steps": 1000,  # 초기 2000 iterations는 full weight 유지
             "initial_weight": 0.125,  # 원래 설정값 (velocity_env_cfg.py 기본값)
-            "final_weight": 0.0,      # 최종적으로 완전히 제거
+            "final_weight": 0.05,      # 최종적으로 완전히 제거
             "decay_type": "cosine",   # 부드러운 cosine 감소
         }
     )
@@ -254,7 +254,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
             weight=1.0,  # 정지 상태에서만 활성화되므로 적당한 weight
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-                "stand_still_scale": 2.0, 
+                "stand_still_scale": 3.0, 
             }
         ) 
 
@@ -298,6 +298,6 @@ class UnitreeGo2SequorEnvCfg_PLAY(UnitreeGo2SequorEnvCfg):
         self.curriculum = None
         
         # Set final velocity ranges for play
-        self.commands.base_velocity.ranges.lin_vel_x = (-2.0, 2.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-2.0, 2.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-2.0, 2.0) 
+        self.commands.base_velocity.ranges.lin_vel_x = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0) 
