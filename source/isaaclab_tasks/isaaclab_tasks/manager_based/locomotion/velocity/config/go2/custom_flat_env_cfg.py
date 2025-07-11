@@ -82,7 +82,7 @@ class CustomCurriculumCfg:
             "num_steps": 3000,  # 통일된 duration
             "warmup_steps": 500,  # Warmup 기간
             "initial_friction_range": (0.8, 0.8),  # 실제 Go2 기본값
-            "final_friction_range": (0.5, 1.1),
+            "final_friction_range": (0.6, 1.0),
             "initial_restitution_range": (0.0, 0.0),  # 실제 Go2 기본값
             "final_restitution_range": (0.0, 0.0),
         }
@@ -209,7 +209,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names="base"),
                 "force_range": (0.0, 0.0),    # 초기값 (curriculum에서 수정됨)
                 "torque_range": (0.0, 0.0),   # 초기값 (curriculum에서 수정됨)
-                "stable_env_ratio": 0.5,      # 50%의 로봇은 영향 안 받음
+                "stable_env_ratio": 0.6,      
             },
         )
         
@@ -220,7 +220,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
             interval_range_s=(15.0, 16.0),  # 초기 간격 (curriculum에서 조정됨)
             params={
                 "velocity_range": {"x": (0.0, 0.0), "y": (0.0, 0.0)},  # 초기값 (curriculum에서 조정됨)
-                "stable_env_ratio": 0.2,  # 20%의 로봇은 영향 안 받음
+                "stable_env_ratio": 0.3,  
             },
         )
 
