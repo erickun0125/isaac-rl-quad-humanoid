@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def nominal_joint_pos_when_static_reward(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg,
-    stand_still_scale: float = 0.1,
+    stand_still_scale: float = 1.0,
 ) -> torch.Tensor:
     """정지 상태에서 nominal joint position 유지를 보상하는 함수.
     
@@ -54,6 +54,6 @@ def nominal_joint_pos_when_static_reward(
     base_reward = torch.exp(-joint_pos_error)
     
     # command가 (0,0,0)일 때만 stand_still_scale 배만큼 강화, 그 외에는 매우 낮은 penalty
-    reward = torch.where(cmd_is_zero, stand_still_scale * base_reward, 0.01 * stand_still_scale * base_reward)
+    reward = torch.where(cmd_is_zero, stand_still_scale * base_reward, 0.1 * stand_still_scale * base_reward)
     
     return reward 

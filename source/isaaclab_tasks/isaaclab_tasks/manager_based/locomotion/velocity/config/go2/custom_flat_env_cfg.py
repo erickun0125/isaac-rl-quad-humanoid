@@ -232,7 +232,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
         #--------------------------------
 
         # Base contact threshold를 조절
-        self.terminations.base_contact.params["threshold"] = 5.0
+        self.terminations.base_contact.params["threshold"] = 0.5
         
         # Orientation 기반 termination 추가 (로봇이 많이 기울어지면 넘어진 것으로 간주)
         self.terminations.base_orientation = DoneTerm(
@@ -254,7 +254,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
             weight=1.0,  # 정지 상태에서만 활성화되므로 적당한 weight
             params={
                 "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-                "stand_still_scale": 0.1, 
+                "stand_still_scale": 2.0, 
             }
         ) 
 
@@ -298,6 +298,6 @@ class UnitreeGo2SequorEnvCfg_PLAY(UnitreeGo2SequorEnvCfg):
         self.curriculum = None
         
         # Set final velocity ranges for play
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0) 
+        self.commands.base_velocity.ranges.lin_vel_x = (-2.0, 2.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-2.0, 2.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-2.0, 2.0) 
