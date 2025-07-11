@@ -51,8 +51,6 @@ def modify_physics_material_curriculum(
     if current_iteration < warmup_steps:
         return {
             "progress": 0.0,
-            "current_iteration": float(current_iteration),
-            "warmup_remaining": float(warmup_steps - current_iteration),
         }
     
     # Curriculum 진행도 계산 (0.0 ~ 1.0)
@@ -83,12 +81,7 @@ def modify_physics_material_curriculum(
     env.event_manager.set_term_cfg(term_name, term_cfg)
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "friction_low": friction_range[0],
-        "friction_high": friction_range[1],
-        "restitution_low": restitution_range[0], 
-        "restitution_high": restitution_range[1],
+        "progress": float(progress),
     }
 
 
@@ -115,8 +108,6 @@ def modify_external_forces_curriculum(
     if current_iteration < warmup_steps:
         return {
             "progress": 0.0,
-            "current_iteration": float(current_iteration),
-            "warmup_remaining": float(warmup_steps - current_iteration),
         }
     
     # Curriculum 진행도 계산
@@ -146,12 +137,7 @@ def modify_external_forces_curriculum(
     env.event_manager.set_term_cfg(term_name, term_cfg)
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "force_low": force_range[0],
-        "force_high": force_range[1],
-        "torque_low": torque_range[0],
-        "torque_high": torque_range[1],
+        "progress": float(progress),
     }
 
 
@@ -178,8 +164,6 @@ def modify_push_robot_curriculum(
     if current_iteration < warmup_steps:
         return {
             "progress": 0.0,
-            "current_iteration": float(current_iteration),
-            "warmup_remaining": float(warmup_steps - current_iteration),
         }
     
     # Curriculum 진행도 계산
@@ -214,14 +198,7 @@ def modify_push_robot_curriculum(
     env.event_manager.set_term_cfg(term_name, term_cfg)
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "push_vel_x_low": velocity_range_dict["x"][0],
-        "push_vel_x_high": velocity_range_dict["x"][1],
-        "push_vel_y_low": velocity_range_dict["y"][0],
-        "push_vel_y_high": velocity_range_dict["y"][1],
-        "push_interval_low": interval_range[0],
-        "push_interval_high": interval_range[1],
+        "progress": float(progress),
     }
 
 
@@ -250,8 +227,6 @@ def modify_velocity_command_curriculum(
     if current_iteration < warmup_steps:
         return {
             "progress": 0.0,
-            "current_iteration": float(current_iteration),
-            "warmup_remaining": float(warmup_steps - current_iteration),
         }
     
     # Curriculum 진행도 계산
@@ -287,14 +262,7 @@ def modify_velocity_command_curriculum(
     cmd_term.cfg.ranges.ang_vel_z = ang_vel_z
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "lin_vel_x_low": lin_vel_x[0],
-        "lin_vel_x_high": lin_vel_x[1],
-        "lin_vel_y_low": lin_vel_y[0],
-        "lin_vel_y_high": lin_vel_y[1],
-        "ang_vel_z_low": ang_vel_z[0],
-        "ang_vel_z_high": ang_vel_z[1],
+        "progress": float(progress),
     }
 
 
@@ -319,8 +287,6 @@ def modify_mass_randomization_curriculum(
     if current_iteration < warmup_steps:
         return {
             "progress": 0.0,
-            "current_iteration": float(current_iteration),
-            "warmup_remaining": float(warmup_steps - current_iteration),
         }
     
     # Curriculum 진행도 계산
@@ -344,10 +310,7 @@ def modify_mass_randomization_curriculum(
     env.event_manager.set_term_cfg(term_name, term_cfg)
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "mass_low": mass_range[0],
-        "mass_high": mass_range[1],
+        "progress": float(progress),
     } 
 
 
@@ -389,7 +352,10 @@ def modify_reward_weight_curriculum(
     if current_iteration < warmup_steps:
         current_weight = initial_weight
         progress = 0.0
-        status_code = 0.0  # 0: warmup
+        return {
+            "progress": float(progress),
+            "current_weight": float(current_weight),
+        }
     else:
         # Curriculum 진행도 계산
         curriculum_start = warmup_steps
@@ -399,7 +365,6 @@ def modify_reward_weight_curriculum(
             # Curriculum 완료 - 최종 weight 사용
             current_weight = final_weight
             progress = 1.0
-            status_code = 2.0  # 2: completed
         else:
             # Curriculum 진행 중 - 점진적 변화
             raw_progress = (current_iteration - curriculum_start) / num_steps
@@ -416,27 +381,17 @@ def modify_reward_weight_curriculum(
                 progress = raw_progress  # 기본값은 linear
             
             current_weight = initial_weight + progress * (final_weight - initial_weight)
-            status_code = 1.0  # 1: in_progress
     
     # Reward manager에서 해당 term의 weight 업데이트
     try:
         # Get the reward term configuration
         term_idx = env.reward_manager._term_names.index(reward_term_name)
         env.reward_manager._term_cfgs[term_idx].weight = current_weight
-        
-        update_success = 1.0  # 성공
     except (ValueError, AttributeError) as e:
         # Term not found or reward manager access failed
         print(f"Warning: Could not update reward term '{reward_term_name}': {e}")
-        update_success = 0.0  # 실패
     
     return {
-        "progress": progress,
-        "current_iteration": float(current_iteration),
-        "current_weight": current_weight,
-        "initial_weight": initial_weight,
-        "final_weight": final_weight,
-        "status_code": status_code,  # 문자열 대신 숫자 코드 사용
-        "update_success": update_success,  # boolean 대신 숫자 사용
-        "warmup_remaining": max(0.0, float(warmup_steps - current_iteration)) if current_iteration < warmup_steps else 0.0,
+        "progress": float(progress),
+        "current_weight": float(current_weight),
     } 

@@ -79,8 +79,8 @@ class CustomCurriculumCfg:
         func=modify_physics_material_curriculum,
         params={
             "term_name": "physics_material",
-            "num_steps": 10000,  # 통일된 duration
-            "warmup_steps": 1000,  # Warmup 기간
+            "num_steps": 3000,  # 통일된 duration
+            "warmup_steps": 500,  # Warmup 기간
             "initial_friction_range": (0.8, 0.8),  # 실제 Go2 기본값
             "final_friction_range": (0.3, 2.0),
             "initial_restitution_range": (0.0, 0.0),  # 실제 Go2 기본값
@@ -93,8 +93,8 @@ class CustomCurriculumCfg:
         func=modify_external_forces_curriculum,
         params={
             "term_name": "base_external_force_torque",
-            "num_steps": 10000,  # 통일된 duration
-            "warmup_steps": 1000,  # Warmup 기간
+            "num_steps": 3000,  # 통일된 duration
+            "warmup_steps": 500,  # Warmup 기간
             "initial_force_range": (0.0, 0.0),  # 실제 Go2 기본값
             "final_force_range": (-20.0, 20.0),
             "initial_torque_range": (0.0, 0.0),  # 실제 Go2 기본값
@@ -107,8 +107,8 @@ class CustomCurriculumCfg:
         func=modify_push_robot_curriculum,
         params={
             "term_name": "push_robot",
-            "num_steps": 10000,  # 통일된 duration
-            "warmup_steps": 1000,  # Warmup 기간
+            "num_steps": 3000,  # 통일된 duration
+            "warmup_steps": 500,  # Warmup 기간
             "initial_velocity_range": {"x": (0.0, 0.0), "y": (0.0, 0.0)},  # Go2에서 push_robot=None이므로 0부터 시작
             "final_velocity_range": {"x": (-2.0, 2.0), "y": (-2.0, 2.0)},
             "initial_interval": (15.0, 20.0),
@@ -121,8 +121,8 @@ class CustomCurriculumCfg:
         func=modify_velocity_command_curriculum,
         params={
             "command_name": "base_velocity",
-            "num_steps": 5000,  # 통일된 duration
-            "warmup_steps": 1500,  # Warmup 기간
+            "num_steps": 2000,  # 통일된 duration
+            "warmup_steps": 1000,  # Warmup 기간
             "initial_lin_vel_x": (-1.0, 1.0),  # 실제 Go2 기본값
             "final_lin_vel_x": (-3.0, 3.0),
             "initial_lin_vel_y": (-1.0, 1.0),  # 실제 Go2 기본값
@@ -137,8 +137,8 @@ class CustomCurriculumCfg:
         func=modify_mass_randomization_curriculum,
         params={
             "term_name": "add_base_mass",
-            "num_steps": 5000,  # 통일된 duration
-            "warmup_steps": 1500,  # Warmup 기간
+            "num_steps": 2000,  # 통일된 duration
+            "warmup_steps": 1000,  # Warmup 기간
             "initial_mass_range": (-1.0, 3.0),  # 실제 Go2 기본값 (수정됨)
             "final_mass_range": (-1.0, 8.0),
         }
@@ -149,8 +149,8 @@ class CustomCurriculumCfg:
         func=modify_reward_weight_curriculum,
         params={
             "reward_term_name": "feet_air_time",
-            "num_steps": 5000,  # Curriculum 지속 기간
-            "warmup_steps": 2000,  # 초기 2000 iterations는 full weight 유지
+            "num_steps": 2000,  # Curriculum 지속 기간
+            "warmup_steps": 1000,  # 초기 2000 iterations는 full weight 유지
             "initial_weight": 0.125,  # 원래 설정값 (velocity_env_cfg.py 기본값)
             "final_weight": 0.0,      # 최종적으로 완전히 제거
             "decay_type": "cosine",   # 부드러운 cosine 감소
