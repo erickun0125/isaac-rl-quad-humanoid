@@ -111,8 +111,8 @@ class CustomCurriculumCfg:
             "warmup_steps": 1000,  # Warmup 기간
             "initial_velocity_range": {"x": (0.0, 0.0), "y": (0.0, 0.0)},  # Go2에서 push_robot=None이므로 0부터 시작
             "final_velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)},
-            "initial_interval": (11.0, 20.0),
-            "final_interval": (5.0, 10.0),
+            "initial_interval": (10.0, 20.0),
+            "final_interval": (3.0, 20.0),
         }
     )
     
@@ -209,7 +209,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
                 "asset_cfg": SceneEntityCfg("robot", body_names="base"),
                 "force_range": (0.0, 0.0),    # 초기값 (curriculum에서 수정됨)
                 "torque_range": (0.0, 0.0),   # 초기값 (curriculum에서 수정됨)
-                "stable_env_ratio": 0.6,      
+                "stable_env_ratio": 0.8,      
             },
         )
         
@@ -220,7 +220,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
             interval_range_s=(15.0, 16.0),  # 초기 간격 (curriculum에서 조정됨)
             params={
                 "velocity_range": {"x": (0.0, 0.0), "y": (0.0, 0.0)},  # 초기값 (curriculum에서 조정됨)
-                "stable_env_ratio": 0.3,  
+                "stable_env_ratio": 0.4,  
             },
         )
 
@@ -228,7 +228,8 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
         
         # Velocity command에서 10%의 로봇이 항상 정지하도록 설정
         self.commands.base_velocity.rel_standing_envs = 0.1
-
+        self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
+        
         #--------------------------------
 
         # Base contact threshold를 조절
@@ -298,6 +299,6 @@ class UnitreeGo2SequorEnvCfg_PLAY(UnitreeGo2SequorEnvCfg):
         self.curriculum = None
         
         # Set final velocity ranges for play
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.0, 0.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0) 
+        self.commands.base_velocity.ranges.lin_vel_x = (-2.0, 2.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-2.0, 2.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-2.0, 2.0) 

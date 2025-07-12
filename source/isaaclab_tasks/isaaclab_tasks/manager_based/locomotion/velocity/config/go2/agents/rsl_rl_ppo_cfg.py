@@ -16,7 +16,7 @@ class UnitreeGo2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "unitree_go2_rough"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
-        noise_std_type="log",
+        noise_std_type="scalar",
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
@@ -57,6 +57,6 @@ class UnitreeGo2SequorPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
         self.max_iterations = 15000
         self.experiment_name = "unitree_go2_sequor"
         self.policy.actor_hidden_dims = [128, 128, 128]
-        self.policy.critic_hidden_dims = [128, 128, 128]
+        self.policy.critic_hidden_dims = [256, 128, 128]
 
-        self.algorithm.learning_rate=1.0e-4
+        self.algorithm.learning_rate=5.0e-4
