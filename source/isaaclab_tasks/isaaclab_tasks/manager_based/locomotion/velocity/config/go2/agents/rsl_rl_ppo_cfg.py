@@ -5,7 +5,7 @@
 
 from isaaclab.utils import configclass
 
-from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoActorCriticRecurrentCfg, RslRlPpoAlgorithmCfg
 
 
 @configclass
@@ -41,8 +41,6 @@ class UnitreeGo2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 @configclass
 class UnitreeGo2FlatPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
     def __post_init__(self):
-        super().__post_init__()
-
         self.max_iterations = 300
         self.experiment_name = "unitree_go2_flat"
         self.policy.actor_hidden_dims = [128, 128, 128]
@@ -51,12 +49,32 @@ class UnitreeGo2FlatPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
 @configclass
 class UnitreeGo2SequorPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
     def __post_init__(self):
-        super().__post_init__()
         self.save_interval = 500
-
         self.max_iterations = 15000
         self.experiment_name = "unitree_go2_sequor"
         self.policy.actor_hidden_dims = [128, 128, 128]
         self.policy.critic_hidden_dims = [256, 128, 128]
+        self.algorithm.learning_rate = 5.0e-4
 
-        self.algorithm.learning_rate=5.0e-4
+
+@configclass
+class UnitreeGo2SequorRNNPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
+    def __post_init__(self):
+        self.save_interval = 500
+        self.max_iterations = 15000
+        self.experiment_name = "unitree_go2_sequor_rnn"
+        
+        # RNN 버전의 policy 설정
+        self.policy = RslRlPpoActorCriticRecurrentCfg(
+            noise_std_type="scalar",
+            init_noise_std=1.0,
+            actor_hidden_dims=[128, 128, 128],
+            critic_hidden_dims=[256, 128, 128],
+            activation="elu",
+            rnn_type="gru",
+            rnn_hidden_dim=256,
+            rnn_num_layers=1,
+        )
+        
+        # 학습률을 조정
+        self.algorithm.learning_rate = 5.0e-4

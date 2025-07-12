@@ -228,7 +228,7 @@ class UnitreeGo2SequorEnvCfg(UnitreeGo2FlatEnvCfg):
         
         # Velocity command에서 10%의 로봇이 항상 정지하도록 설정
         self.commands.base_velocity.rel_standing_envs = 0.1
-        self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
+        self.commands.base_velocity.resampling_time_range = (5.0, 15.0)
         
         #--------------------------------
 
