@@ -16,13 +16,14 @@ class UnitreeGo2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "unitree_go2_rough"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
+        noise_std_type="log",
         init_noise_std=1.0,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        value_loss_coef=1.0,
+        value_loss_coef=0.5,
         use_clipped_value_loss=True,
         clip_param=0.2,
         entropy_coef=0.01,

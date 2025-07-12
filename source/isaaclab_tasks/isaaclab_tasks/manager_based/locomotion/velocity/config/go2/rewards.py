@@ -51,9 +51,9 @@ def nominal_joint_pos_when_static_reward(
     # Reward 계산: exponential을 사용해서 0~1 사이 값으로 변환
     # joint_pos_error가 0일 때 exp(0) = 1 (최대 reward)
     # joint_pos_error가 클수록 exp(-error) → 0 (최소 reward)
-    base_reward = torch.exp(-joint_pos_error)
+    base_reward = torch.exp(-joint_pos_error * 0.01)
     
     # command가 (0,0,0)일 때만 stand_still_scale 배만큼 강화, 그 외에는 매우 낮은 penalty
-    reward = torch.where(cmd_is_zero, stand_still_scale * base_reward, 0.1 * stand_still_scale * base_reward)
+    reward = torch.where(cmd_is_zero, stand_still_scale * base_reward, 0.5 * stand_still_scale * base_reward)
     
     return reward 
