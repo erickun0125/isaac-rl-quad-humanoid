@@ -8,6 +8,8 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import os
+from datetime import datetime
 
 from isaaclab.app import AppLauncher
 
@@ -29,6 +31,7 @@ parser.add_argument(
     help="Use the pre-trained checkpoint from Nucleus.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+parser.add_argument("--enable_logging", action="store_true", default=True, help="Enable policy I/O logging.")
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
 # append AppLauncher cli args
@@ -45,9 +48,9 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import gymnasium as gym
-import os
 import time
 import torch
+import numpy as np
 
 import carb
 import omni
@@ -68,6 +71,131 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+
+
+class PolicyLogger:
+    """Policy I/O logger for play_go2_keyboard.py"""
+    
+    def __init__(self, log_dir: str = None):
+        self.log_directory = log_dir
+        self.log_file_path = None
+        self.step_count = 0
+        
+        if self.log_directory is None:
+            self._auto_init_logging()
+        else:
+            self.set_log_directory(log_dir)
+    
+    def _auto_init_logging(self):
+        """Automatically initialize logging directory and file"""
+        try:
+            # Create logs directory if it doesn't exist
+            logs_base_dir = os.path.join(os.getcwd(), "logs")
+            os.makedirs(logs_base_dir, exist_ok=True)
+            
+            # Create timestamped log directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_dir = os.path.join(logs_base_dir, f"play_policy_{timestamp}")
+            os.makedirs(log_dir, exist_ok=True)
+            
+            # Set the log directory
+            self.set_log_directory(log_dir)
+            
+        except Exception as e:
+            print(f"❌ Error auto-initializing logging: {e}")
+            self.log_file_path = None
+    
+    def set_log_directory(self, log_dir: str):
+        """Set the log directory and create the policy_IO.py file"""
+        self.log_directory = log_dir
+        self.log_file_path = os.path.join(log_dir, "policy_IO.py")
+        
+        try:
+            # Create the initial policy_IO.py file with proper structure
+            with open(self.log_file_path, 'w') as f:
+                f.write("# Policy Input/Output Log (from play_go2_keyboard.py)\n")
+                f.write(f"# Created at: {datetime.now().isoformat()}\n\n")
+                f.write("# observation & action configuration is based on sim:\n")
+                f.write("# Each step contains:\n")
+                f.write("# - step: step number\n")
+                f.write("# - timestamp: ISO timestamp\n")
+                f.write("# - policy input: observation (45 dims)\n")
+                f.write("# - policy output: raw action (12 dims)\n")
+                f.write("policy_steps = [\n")
+            
+            # Verify file was created
+            if os.path.exists(self.log_file_path):
+                print(f"✅ Policy logging initialized: {self.log_file_path}")
+            else:
+                print(f"❌ Failed to create log file: {self.log_file_path}")
+                
+        except Exception as e:
+            print(f"❌ Error initializing policy logging: {e}")
+            self.log_file_path = None
+    
+    def log_policy_step(self, obs: torch.Tensor, actions: torch.Tensor):
+        """Log a single policy step to the policy_IO.py file"""
+        if self.log_file_path is None:
+            return
+            
+        self.step_count += 1
+        
+        # Convert tensors to numpy arrays
+        obs_np = obs.cpu().numpy()
+        actions_np = actions.cpu().numpy()
+        
+        # Take first environment if multiple environments
+        if obs_np.ndim > 1:
+            obs_np = obs_np[0]
+        if actions_np.ndim > 1:
+            actions_np = actions_np[0]
+        
+        # Break down observation into components (Go2 specific)
+        if len(obs_np) == 45:
+            obs_components = {
+                'base_ang_vel': obs_np[0:3].tolist(),
+                'projected_gravity': obs_np[3:6].tolist(),
+                'velocity_commands': obs_np[6:9].tolist(),
+                'relative_joint_pos': obs_np[9:21].tolist(),
+                'relative_joint_vel': obs_np[21:33].tolist(),
+                'prev_actions': obs_np[33:45].tolist(),
+                'concatenated_obs': obs_np.tolist()
+            }
+        else:
+            # Fallback for non-Go2 observations
+            obs_components = {
+                'concatenated_obs': obs_np.tolist()
+            }
+
+        # Prepare step data
+        step_data = {
+            'step': self.step_count,
+            'timestamp': datetime.now().isoformat(),
+            'input': obs_components,
+            'output': {
+                'raw_actions': actions_np.flatten().tolist()
+            }
+        }
+        
+        # Append to file in Python format and flush immediately
+        with open(self.log_file_path, 'a') as f:
+            f.write(f"    # Step {self.step_count}\n")
+            f.write(f"    {step_data},\n")
+            f.flush()  # Ensure data is written to disk immediately
+    
+    def finalize_log(self):
+        """Finalize the log file by closing the list"""
+        if self.log_file_path and os.path.exists(self.log_file_path):
+            try:
+                with open(self.log_file_path, 'a') as f:
+                    f.write("]\n\n")
+                    f.write("# Log completed\n")
+                    f.write(f"# Total steps: {self.step_count}\n")
+                    f.write(f"# Completed at: {datetime.now().isoformat()}\n")
+                
+                print(f"✅ Policy log completed: {self.log_file_path} (Steps: {self.step_count})")
+            except Exception as e:
+                print(f"❌ Error finalizing log: {e}")
 
 
 class Go2KeyboardDemo:
@@ -156,6 +284,11 @@ class Go2KeyboardDemo:
         export_policy_as_onnx(
             policy_nn, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
         )
+
+        # Initialize policy logger
+        self.policy_logger = None
+        if args_cli.enable_logging:
+            self.policy_logger = PolicyLogger()
 
         # Initialize camera and keyboard setup
         self.create_camera()
@@ -394,6 +527,10 @@ class Go2KeyboardDemo:
                 # Get policy action
                 actions = self.policy(obs)
                 
+                # Log policy step if logging is enabled
+                if self.policy_logger is not None:
+                    self.policy_logger.log_policy_step(obs, actions)
+                
                 # Step environment
                 obs, _, _, _ = self.env.step(actions)
                 
@@ -422,6 +559,10 @@ class Go2KeyboardDemo:
             sleep_time = dt - (time.time() - start_time)
             if args_cli.real_time and sleep_time > 0:
                 time.sleep(sleep_time)
+
+        # Finalize logging
+        if self.policy_logger is not None:
+            self.policy_logger.finalize_log()
 
         # Cleanup
         self.env.close()
