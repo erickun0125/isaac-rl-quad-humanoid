@@ -76,10 +76,12 @@ from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 class PolicyLogger:
     """Policy I/O logger for play_go2_keyboard.py"""
     
-    def __init__(self, log_dir: str = None):
+    def __init__(self, log_dir: str = None, max_steps: int = 500):
         self.log_directory = log_dir
         self.log_file_path = None
         self.step_count = 0
+        self.max_steps = max_steps
+        self.flag = True
         
         if self.log_directory is None:
             self._auto_init_logging()
@@ -136,6 +138,14 @@ class PolicyLogger:
     def log_policy_step(self, obs: torch.Tensor, actions: torch.Tensor):
         """Log a single policy step to the policy_IO.py file"""
         if self.log_file_path is None:
+            return
+        
+        # Check if we've reached the maximum number of steps
+        if self.step_count >= self.max_steps:
+            # Close the list with bracket when max steps reached
+            if self.flag == True:
+                self.finalize_log()
+                self.flag = False
             return
             
         self.step_count += 1
@@ -288,7 +298,7 @@ class Go2KeyboardDemo:
         # Initialize policy logger
         self.policy_logger = None
         if args_cli.enable_logging:
-            self.policy_logger = PolicyLogger()
+            self.policy_logger = PolicyLogger(max_steps=500)
 
         # Initialize camera and keyboard setup
         self.create_camera()
@@ -332,16 +342,16 @@ class Go2KeyboardDemo:
         
         # Define maximum values for each command type (adapted for Go2)
         self._max_values = {
-            "linear_x": 2.0,   # Go2 max forward speed
+            "linear_x": 1.5,   # Go2 max forward speed
             "linear_y": 1.0,   # Go2 max lateral speed  
-            "angular_z": 1.5   # Go2 max angular speed
+            "angular_z": 1.0   # Go2 max angular speed
         }
         
         # Define acceleration rates (how fast commands ramp up per second)
         self._acceleration_rates = {
-            "linear_x": 2.0,   # Reach max in 1.0 seconds
-            "linear_y": 2.0,   # Reach max in 1.0 seconds  
-            "angular_z": 3.0   # Reach max in 0.5 seconds
+            "linear_x": 1.5,   # Reach max in 1.0 seconds
+            "linear_y": 1.0,   # Reach max in 1.0 seconds  
+            "angular_z": 1.0   # Reach max in 0.5 seconds
         }
         
         # Current target velocities based on key presses
@@ -356,8 +366,8 @@ class Go2KeyboardDemo:
             "DOWN": (0, -1.0),   # linear_x negative (backward)
             "LEFT": (1, 1.0),    # linear_y positive (strafe left)
             "RIGHT": (1, -1.0),  # linear_y negative (strafe right)
-            "Z": (2, 1.0),       # angular_z positive (turn left)
-            "X": (2, -1.0),      # angular_z negative (turn right)
+            "Q": (2, 1.0),       # angular_z positive (turn left)
+            "E": (2, -1.0),      # angular_z negative (turn right)
         }
 
     def _on_keyboard_event(self, event):
@@ -478,8 +488,8 @@ class Go2KeyboardDemo:
         print("  DOWN Arrow  : Move backward (max speed: -2.0 m/s)")
         print("  LEFT Arrow  : Strafe left (max speed: 1.0 m/s)")
         print("  RIGHT Arrow : Strafe right (max speed: -1.0 m/s)")
-        print("  Z           : Turn left (max angular: 1.5 rad/s)")
-        print("  X           : Turn right (max angular: -1.5 rad/s)")
+        print("  Q           : Turn left (max angular: 1.5 rad/s)")
+        print("  E           : Turn right (max angular: -1.5 rad/s)")
         print("  SPACE       : Reset all commands to zero")
         print("  C           : Switch camera view (when robot selected)")
         print("  ESC         : Clear selection")
