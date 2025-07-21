@@ -6,7 +6,8 @@
 from isaaclab.utils import configclass
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoActorCriticRecurrentCfg, RslRlPpoAlgorithmCfg
-
+from isaaclab_rl.rsl_rl.symmetry_cfg import RslRlSymmetryCfg
+from .symmetry import custom_locomotion_symmetry
 
 @configclass
 class UnitreeGo2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -52,9 +53,15 @@ class UnitreeGo2SequorPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
         self.save_interval = 500
         self.max_iterations = 15000
         self.experiment_name = "unitree_go2_sequor"
-        self.policy.actor_hidden_dims = [128, 128, 128]
-        self.policy.critic_hidden_dims = [256, 128, 128]
+        self.policy.actor_hidden_dims = [256, 256, 128]
+        self.policy.critic_hidden_dims = [256, 256, 128]
         self.algorithm.learning_rate = 5.0e-4
+        self.algorithm.symmetry_cfg = RslRlSymmetryCfg(
+            use_data_augmentation=True,
+            use_mirror_loss=True,
+            data_augmentation_func=custom_locomotion_symmetry,
+            mirror_loss_coeff=0.1,
+        )
 
 
 @configclass
@@ -68,8 +75,8 @@ class UnitreeGo2SequorRNNPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
         self.policy = RslRlPpoActorCriticRecurrentCfg(
             noise_std_type="scalar",
             init_noise_std=1.0,
-            actor_hidden_dims=[128, 128, 128],
-            critic_hidden_dims=[256, 128, 128],
+            actor_hidden_dims=[256, 256, 128],
+            critic_hidden_dims=[256, 256, 128],
             activation="elu",
             rnn_type="gru",
             rnn_hidden_dim=256,

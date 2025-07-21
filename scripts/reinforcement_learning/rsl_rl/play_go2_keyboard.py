@@ -342,9 +342,9 @@ class Go2KeyboardDemo:
         
         # Define maximum values for each command type (adapted for Go2)
         self._max_values = {
-            "linear_x": 1.5,   # Go2 max forward speed
-            "linear_y": 1.0,   # Go2 max lateral speed  
-            "angular_z": 1.0   # Go2 max angular speed
+            "linear_x": 0.5,   # Go2 max forward speed
+            "linear_y": 0.5,   # Go2 max lateral speed  
+            "angular_z": 0.5   # Go2 max angular speed
         }
         
         # Define acceleration rates (how fast commands ramp up per second)
