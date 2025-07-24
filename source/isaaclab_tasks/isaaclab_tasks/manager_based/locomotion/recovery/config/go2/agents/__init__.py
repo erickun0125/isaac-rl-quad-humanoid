@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Locomotion environments for legged robots."""
+"""Agent configurations for recovery tasks."""
 
-from .velocity import *  # noqa
-from .recovery import *  # noqa
+from .rsl_rl_ppo_cfg import *  # noqa

@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Locomotion environments for legged robots."""
+"""Configuration for recovery environments."""
 
-from .velocity import *  # noqa
-from .recovery import *  # noqa
+from .go2 import *  # noqa

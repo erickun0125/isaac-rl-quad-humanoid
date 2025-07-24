@@ -1,0 +1,58 @@
+models:
+  separate: false
+  policy:
+    class: GaussianMLP
+    params:
+      clip_actions: true
+      clip_log_std: true
+      min_log_std: -5.0
+      max_log_std: 2.0
+      initial_log_std: 0.0
+      network:
+        - name: net
+          input: STATES
+          output: 12  # Go2 has 12 joints
+          layers: [256, 128, 64]
+          activations: elu
+  value:
+    class: DeterministicMLP
+    params:
+      clip_actions: false
+      network:
+        - name: net
+          input: STATES
+          output: 1
+          layers: [256, 128, 64]
+          activations: elu
+
+agent:
+  class: PPO
+  params:
+    rollouts: 32
+    learning_epochs: 5
+    mini_batches: 4
+    discount_factor: 0.99
+    lambda: 0.95
+    learning_rate: 1.0e-3
+    learning_rate_scheduler: KLAdaptiveLR
+    learning_rate_scheduler_kwargs:
+      kl_threshold: 0.01
+    random_timesteps: 0
+    learning_starts: 0
+    grad_norm_clip: 1.0
+    ratio_clip: 0.2
+    value_clip: 0.2
+    clip_predicted_values: true
+    entropy_loss_scale: 0.01
+    value_loss_scale: 0.5
+    kl_threshold: 0
+    state_preprocessor: RunningStandardScaler
+    state_preprocessor_kwargs: null
+    value_preprocessor: RunningStandardScaler
+    value_preprocessor_kwargs: null
+    experiment:
+      directory: unitree_go2_recovery_flat
+      experiment_name: ""
+      write_interval: 250
+      checkpoint_interval: 1000
+      store_separately: false
