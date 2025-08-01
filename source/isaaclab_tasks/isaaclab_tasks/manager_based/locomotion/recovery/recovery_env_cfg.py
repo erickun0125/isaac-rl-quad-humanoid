@@ -223,7 +223,7 @@ class RewardsCfg:
     # -- separate target configuration rewards: flat_orientation, joint_pose, final_configuration
     flat_orientation = RewTerm(
         func=mdp.flat_orientation,
-        weight=1.5,  # Positive weight (function already applies negative internally)
+        weight=1.0,  # Positive weight (function already applies negative internally)
     )
     joint_pose = RewTerm(
         func=mdp.joint_pose,
@@ -235,19 +235,43 @@ class RewardsCfg:
     )
     final_configuration = RewTerm(  
         func=mdp.final_configuration,
-        weight=10.0,  # Positive weight for final configuration bonus
+        weight=15.0,  # Positive weight for final configuration bonus
     )
 
-
-
     # -- penalty terms
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_threshold_penalty, weight=-0.1, params={"threshold": 0.5})
-    joint_vel_l2 = RewTerm(func=mdp.joint_vel_threshold_penalty, weight=-0.06, params={"threshold":2.0})
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_threshold_penalty, weight=-0.2, params={"threshold": 0.3})
+    joint_vel_l2 = RewTerm(func=mdp.joint_vel_threshold_penalty, weight=-0.1, params={"threshold":1.0})
     joint_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1.0e-5)
     joint_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-1.0e-7)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-1.0e-4)
 
+    feet_slide = RewTerm(
+        func=mdp.feet_slide,
+        weight=-2.0,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+        },
+    )
+
+    body_lin_acc_l2 = RewTerm(
+        func=mdp.body_lin_acc_l2,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="base")},
+    )  
     
+    # Head contact termination 추가 (머리 부분이 지면에 닿으면 termination)
+    head_contact = RewTerm(func=mdp.undesired_contacts,
+        weight=-20.0,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["Head_upper", "Head_lower"]),
+            "threshold": 0.5  # Threshold for head contact
+        }
+    )
+
+    
+
+
     # -- contact penalties (Go2 specific)
     '''
     contact_force_penalty = RewTerm(

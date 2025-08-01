@@ -110,7 +110,7 @@ def target_configuration(
     hip_joint_pos_reward = joint_pos_reward_per_joint[:, :4]  # [num_envs, 4] - only hip joints
     non_hip_joint_pos_reward = joint_pos_reward_per_joint[:, 4:]  # [num_envs, 8] - exclude hip joints
 
-    joint_pos_reward_component = torch.mean(hip_joint_pos_reward, dim=1) + torch.mean(non_hip_joint_pos_reward, dim=1) # [num_envs] - mean across hip joints
+    joint_pos_reward_component = torch.mean(hip_joint_pos_reward, dim=1) + 2.0 *torch.mean(non_hip_joint_pos_reward, dim=1) # [num_envs] - mean across hip joints
 
     joint_pose_reward = torch.where(is_upright_for_joint_pose, joint_pos_reward_component,
                                    0.0 * joint_pos_reward_component)
@@ -189,7 +189,7 @@ def joint_pose(
                                final_config_weight=0.0,
                                foot_contact_weight=0.0,
                                joint_orientation_threshold=0.524,  # 30 degrees
-                               std=0.3,  # radians (for joint_pose
+                               std=0.2,  # radians (for joint_pose
                                )
 
 def foot_contact(
@@ -219,7 +219,7 @@ def final_configuration(
                                final_orientation_threshold=0.16,  # 10 degrees
                                final_joint_threshold=0.628,  # 36 degrees total
                                final_time_threshold=0.8,   # only after 30% of episode
-                               std=0.3,  # radians (for joint_pose)
+                               std=0.2,  # radians (for joint_pose)
                                big_reward=100.0,  # Large bonus for achieving final configuration
                                )
 
@@ -302,3 +302,20 @@ def joint_vel_threshold_penalty(
     '''
     total_penalty = base_penalty  # [num_envs] - no multiplier applied
     return total_penalty
+
+
+def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize feet sliding.
+
+    This function penalizes the agent for sliding its feet on the ground. The reward is computed as the
+    norm of the linear velocity of the feet multiplied by a binary contact sensor. This ensures that the
+    agent is penalized only when the feet are in contact with the ground.
+    """
+    # Penalize feet sliding
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contacts = contact_sensor.data.net_forces_w_history[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+    asset = env.scene[asset_cfg.name]
+
+    body_vel = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2]
+    reward = torch.sum(body_vel.norm(dim=-1) * contacts, dim=1)
+    return reward

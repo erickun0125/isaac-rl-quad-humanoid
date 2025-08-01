@@ -40,9 +40,9 @@ class CustomObservationsCfg:
             noise=Unoise(n_min=-0.02, n_max=0.02),
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01), history_length=1)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5), history_length=1)
-        actions = ObsTerm(func=mdp.last_action, history_length=1)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01), history_length=3)
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5), history_length=2)
+        actions = ObsTerm(func=mdp.last_action, history_length=2)
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -57,9 +57,9 @@ class CustomObservationsCfg:
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
         projected_gravity = ObsTerm(func=mdp.projected_gravity)
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, history_length=1)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, history_length=1)
-        actions = ObsTerm(func=mdp.last_action, history_length=1)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, history_length=3)
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, history_length=2)
+        actions = ObsTerm(func=mdp.last_action, history_length=2)
 
         def __post_init__(self):
             self.enable_corruption = False  # Critic gets clean observations
