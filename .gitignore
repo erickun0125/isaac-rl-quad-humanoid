@@ -69,3 +69,13 @@ tests/
 
 # Docker history
 .isaac-lab-docker-history
+
+# jpg, png files
+*.jpg
+*.png
+
+# mdl files
+*.mdl
+
+# hash files
+*.asset_hash

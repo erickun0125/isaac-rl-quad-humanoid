@@ -5,7 +5,7 @@
 
 import math
 
-from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FIX, G129_CFG_WITH_DEX3_FLOATING
+from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING
 
 from isaaclab.managers import EventTermCfg
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -57,7 +57,8 @@ HAND_JOINT_NAMES = [
 ]
 
 # Combined joint names for easier reference
-ALL_CONTROLLED_JOINTS = LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES + HAND_JOINT_NAMES
+# without HAND_JOINT_NAMES
+CONTROLLED_JOINTS = LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES
 
 
 @configclass
@@ -71,7 +72,7 @@ class G1LocoManipRewards:
     joint_deviation_arms = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.05,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES + HAND_JOINT_NAMES)},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES)},
     )
 
     base_height_l2 = RewTerm(
@@ -100,7 +101,7 @@ class G1LocoManipRewards:
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
         weight=-2.5e-5,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ALL_CONTROLLED_JOINTS)},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
 
     joint_accel_l2 = RewTerm(
@@ -117,14 +118,14 @@ class G1LocoManipRewards:
     joint_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
         weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ALL_CONTROLLED_JOINTS)},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
 
     joint_vel_limits = RewTerm(
         func=mdp.joint_vel_limits,
         weight=-1.0,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=ALL_CONTROLLED_JOINTS),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS),
             "soft_ratio": 0.9,
         },
     )
@@ -250,12 +251,12 @@ class G1LocoManipObservations:
         )
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=ALL_CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
             noise=Unoise(n_min=-0.01, n_max=0.01),
         )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=ALL_CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
             noise=Unoise(n_min=-1.5, n_max=1.5),
         )
         actions = ObsTerm(func=mdp.last_action)
@@ -275,7 +276,7 @@ class G1LocoManipCommands:
         rel_standing_envs=0.25,
         rel_heading_envs=1.0,
         heading_command=True,
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-1.0, 1.0),
             lin_vel_y=(-1.0, 1.0),
@@ -288,7 +289,7 @@ class G1LocoManipCommands:
         asset_name="robot",
         body_name="left_wrist_yaw_link",  # Updated for G129 DEX3 configuration
         resampling_time_range=(1.0, 3.0),
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(0.10, 0.50),
             pos_y=(0.05, 0.50),
@@ -303,7 +304,7 @@ class G1LocoManipCommands:
         asset_name="robot",
         body_name="right_wrist_yaw_link",  # Updated for G129 DEX3 configuration
         resampling_time_range=(1.0, 3.0),
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(0.10, 0.50),
             pos_y=(-0.50, -0.05),
@@ -347,16 +348,10 @@ class G1ActionsCfg:
 
     joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot",
-        joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES + HAND_JOINT_NAMES,
+        joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES,
         scale=0.5,
         use_default_offset=True,
     )
-'''
-class G1ActionsCfg:
-    """Action specifications for the MDP."""
-
-    joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True)
-'''
 
 @configclass
 class G1TerminationsCfg:
@@ -391,7 +386,7 @@ class G1LocoManipEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # Replace robot with G129 (with DEX3 hands and floating base)
         import copy
-        g1_robot_cfg = copy.deepcopy(G129_CFG_WITH_DEX3_FLOATING)
+        g1_robot_cfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING)
         g1_robot_cfg.prim_path = "{ENV_REGEX_NS}/Robot"
         self.scene.robot = g1_robot_cfg
 
