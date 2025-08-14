@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Configuration for tracking-based locomanipulation environments."""
+"""Agents for Unitree G1 Humanoid Locomanipulation tasks."""
 
-from .config import digit, g1  # noqa: F401
+from .rsl_rl_ppo_cfg import *
+from .custom_rsl_rl_ppo_cfg import *
