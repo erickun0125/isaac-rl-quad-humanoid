@@ -110,89 +110,8 @@ class G1LocoManipSceneCfg(InteractiveSceneCfg):
 @configclass
 class G1LocoManipRewardsCfg:
     """Reward terms for the G1 loco-manipulation task."""
-    joint_vel_hip_yaw = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-0.001,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint"])},
-    )
 
-    joint_deviation_arms = RewTerm(
-        func=mdp.joint_deviation_l1,
-        weight=-0.05,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ARM_JOINT_NAMES)},
-    )
-
-    base_height_l2 = RewTerm(
-        func=mdp.base_height_l2,
-        weight=-1.5,
-        params={"target_height": 0.7},
-    )
-
-    feet_air_time = RewTerm(
-        func=mdp.feet_air_time_positive_biped,
-        weight=0.125,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
-            "command_name": "base_velocity",
-            "threshold": 0.8,
-        },
-    )
-
-    undesired_contacts = None
-
-    flat_orientation_l2 = RewTerm(
-        func=mdp.flat_orientation_l2,
-        weight=-5.0,
-    )
-
-    joint_torques_l2 = RewTerm(
-        func=mdp.joint_torques_l2,
-        weight=-2.5e-5,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
-    )
-
-    joint_accel_l2 = RewTerm(
-        func=mdp.joint_acc_l2,
-        weight=-2.5e-7,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES)},
-    )
-
-    action_rate_l2 = RewTerm(
-        func=mdp.action_rate_l2,
-        weight=-0.01,
-    )
-
-    joint_pos_limits = RewTerm(
-        func=mdp.joint_pos_limits,
-        weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
-    )
-
-    joint_vel_limits = RewTerm(
-        func=mdp.joint_vel_limits,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS),
-            "soft_ratio": 0.9,
-        },
-    )
-
-    lin_vel_z_l2 = RewTerm(
-        func=mdp.lin_vel_z_l2,
-        weight=-0.5,
-    )
-
-    ang_vel_xy_l2 = RewTerm(
-        func=mdp.ang_vel_xy_l2,
-        weight=-0.05,
-    )
-
-    dof_torques_l2 = RewTerm(
-        func=mdp.joint_torques_l2,
-        weight=-1.0e-5,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES)},
-    )
-
+    # Velocity tracking rewards
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp,
         weight=2.0,
@@ -201,10 +120,11 @@ class G1LocoManipRewardsCfg:
 
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_exp,
-        weight=1.0,
+        weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
+    # End-effector tracking rewards
     left_ee_pos_tracking = RewTerm(
         func=manipulation_mdp.position_command_error,
         weight=-2.0,
@@ -261,10 +181,87 @@ class G1LocoManipRewardsCfg:
         },
     )
 
+    # Termination & Undesired Contacts penalty
     termination_penalty = RewTerm(
         func=mdp.is_terminated,
         weight=-100.0,
     )
+
+    undesired_contacts = RewTerm(
+        func=mdp.undesired_contacts,
+        weight=-1.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_JOINT_NAMES)},
+    )
+
+    # Stability rewards
+    lin_vel_z_l2 = RewTerm(
+        func=mdp.lin_vel_z_l2,
+        weight=-0.5,
+    )
+
+    ang_vel_xy_l2 = RewTerm(
+        func=mdp.ang_vel_xy_l2,
+        weight=-0.05,
+    )
+
+    joint_vel_hip_yaw = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-0.001,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint"])},
+    )
+
+    flat_orientation_l2 = RewTerm(
+        func=mdp.flat_orientation_l2,
+        weight=-1.0,
+    )
+
+    # Walking rewards
+    feet_air_time = RewTerm(
+        func=mdp.feet_air_time_positive_biped,
+        weight=0.125,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
+            "command_name": "base_velocity",
+            "threshold": 0.8,
+        },
+    )
+
+    # Joint regularization rewards
+    joint_torques_l2 = RewTerm(
+        func=mdp.joint_torques_l2,
+        weight=-1.0e-5,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+    )
+
+    joint_accel_l2 = RewTerm(
+        func=mdp.joint_acc_l2,
+        weight=-2.5e-7,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES)},
+    )
+
+    action_rate_l2 = RewTerm(
+        func=mdp.action_rate_l2,
+        weight=-0.01,
+    )
+
+    joint_pos_limits = RewTerm(
+        func=mdp.joint_pos_limits,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+    )
+
+    joint_vel_limits = RewTerm(
+        func=mdp.joint_vel_limits,
+        weight=-1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS),
+            "soft_ratio": 0.9,
+        },
+    )
+
+
+
+
 
 @configclass
 class G1LocoManipActionsCfg:
@@ -561,7 +558,7 @@ class G1LocoManipTerminationsCfg:
 class G1LocoManipCurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    #terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 
 @configclass
