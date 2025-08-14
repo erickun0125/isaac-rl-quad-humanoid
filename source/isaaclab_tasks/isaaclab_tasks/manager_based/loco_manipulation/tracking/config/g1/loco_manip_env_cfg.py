@@ -15,6 +15,7 @@ from isaaclab.managers import (
     RewardTermCfg as RewTerm,
     SceneEntityCfg,
     TerminationTermCfg as TermTerm,
+    CurriculumTermCfg as CurrTerm,
 )
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
@@ -67,6 +68,55 @@ HAND_JOINT_NAMES = [
 # Combined joint names for easier reference
 # without HAND_JOINT_NAMES
 CONTROLLED_JOINTS = LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES
+
+# Link names grouped by body region
+LEG_LINK_NAMES = [
+    ".*_hip_pitch_link",
+    ".*_hip_roll_link",
+    ".*_hip_yaw_link",
+    ".*_knee_link",
+    ".*_ankle_pitch_link",
+    ".*_ankle_roll_link",
+]
+
+LOWER_BASE_LINK_NAMES = [
+    "pelvis",
+    "imu_in_pelvis",
+    "pelvis_contour_link",
+    "waist_yaw_link",
+    "waist_roll_link",
+]
+
+UPPER_BASE_LINK_NAMES = [
+    "torso_link",
+    "imu_in_torso",
+    "head_link",
+    "d435_link",
+    "mid360_link",
+    "logo_link",
+]
+
+ARM_LINK_NAMES = [
+    ".*_shoulder_pitch_link",
+    ".*_shoulder_roll_link",
+    ".*_shoulder_yaw_link",
+    ".*_elbow_link",
+    ".*_wrist_roll_link",
+    ".*_wrist_pitch_link",
+    ".*_wrist_yaw_link",
+]
+
+HAND_LINK_NAMES = [
+    ".*_hand_camera_base_link",
+    ".*_hand_palm_link",
+    ".*_hand_index_0_link",
+    ".*_hand_index_1_link",
+    ".*_hand_middle_0_link",
+    ".*_hand_middle_1_link",
+    ".*_hand_thumb_0_link",
+    ".*_hand_thumb_1_link",
+    ".*_hand_thumb_2_link",
+]
 
 
 @configclass
@@ -190,7 +240,7 @@ class G1LocoManipRewardsCfg:
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-1.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_JOINT_NAMES)},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_LINK_NAMES), "threshold": 1.0},
     )
 
     # Stability rewards
