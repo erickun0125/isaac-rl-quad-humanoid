@@ -56,11 +56,11 @@ gym.register(
 
 # Specialized whole body configurations
 gym.register(
-    id="Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0",
+    id="Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_LowerBodyRL",
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_UpperBodyIK",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1LowerBodyOnlyPPORunnerCfg",
     },
 )

@@ -5,53 +5,7 @@
 
 from isaaclab.utils import configclass
 
-try:
-    from isaaclab_rl.algorithms.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
-except ImportError:
-    print("Warning: isaaclab_rl not available. Please install rsl_rl.")
-    # Create dummy configclass-based classes for configuration
-    @configclass
-    class RslRlOnPolicyRunnerCfg:
-        experiment_name: str = "default"
-        seed: int = 42
-        num_steps_per_env: int = 24
-        max_iterations: int = 1500
-        empirical_normalization: bool = False
-        save_interval: int = 50
-        logger: str = "tensorboard"
-        run_name: str = ""
-        clip_actions: float = 1.0
-        device: str = "cuda:0"
-        
-    @configclass
-    class RslRlPpoActorCriticCfg:
-        init_noise_std: float = 1.0
-        actor_hidden_dims: list = None
-        critic_hidden_dims: list = None
-        activation: str = "elu"
-        
-        def __post_init__(self):
-            if self.actor_hidden_dims is None:
-                self.actor_hidden_dims = [512, 256, 128]
-            if self.critic_hidden_dims is None:
-                self.critic_hidden_dims = [512, 256, 128]
-    
-    @configclass
-    class RslRlPpoAlgorithmCfg:
-        value_loss_coef: float = 1.0
-        use_clipped_value_loss: bool = True
-        clip_param: float = 0.2
-        entropy_coef: float = 0.01
-        num_learning_epochs: int = 5
-        num_mini_batches: int = 4
-        learning_rate: float = 1e-3
-        schedule: str = "adaptive"
-        gamma: float = 0.99
-        lam: float = 0.95
-        desired_kl: float = 0.01
-        max_grad_norm: float = 1.0
-        class_name: str = "PPO"
-
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
 @configclass
 class G1WholeBodyPPORunnerCfg(RslRlOnPolicyRunnerCfg):

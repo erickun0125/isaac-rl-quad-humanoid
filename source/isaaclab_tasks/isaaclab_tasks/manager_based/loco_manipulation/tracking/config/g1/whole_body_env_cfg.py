@@ -36,7 +36,6 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.manipulation.reach.mdp as manipulation_mdp
 from . import mdp as g1_mdp
 
 from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING
@@ -90,6 +89,23 @@ LEG_LINK_NAMES = [
     ".*_knee_link",
     ".*_ankle_pitch_link",
     ".*_ankle_roll_link",
+]
+
+LOWER_BASE_LINK_NAMES = [
+    "pelvis",
+    "imu_in_pelvis",
+    "pelvis_contour_link",
+    "waist_yaw_link",
+    "waist_roll_link",
+]
+
+UPPER_BASE_LINK_NAMES = [
+    "torso_link",
+    "imu_in_torso",
+    "head_link",
+    "d435_link",
+    "mid360_link",
+    "logo_link",
 ]
 
 ARM_LINK_NAMES = [
@@ -168,45 +184,6 @@ class G1WholeBodyRewardsCfg:
         func=mdp.track_ang_vel_z_exp,
         weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
-    )
-
-    # End-effector tracking rewards (when using manipulation commands)
-    left_ee_pos_tracking = RewTerm(
-        func=manipulation_mdp.position_command_error,
-        weight=-2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
-            "command_name": "left_ee_pose",
-        },
-    )
-
-    left_ee_pos_tracking_fine_grained = RewTerm(
-        func=manipulation_mdp.position_command_error_tanh,
-        weight=2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
-            "std": 0.05,
-            "command_name": "left_ee_pose",
-        },
-    )
-
-    right_ee_pos_tracking = RewTerm(
-        func=manipulation_mdp.position_command_error,
-        weight=-2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="right_wrist_yaw_link"),
-            "command_name": "right_ee_pose",
-        },
-    )
-
-    right_ee_pos_tracking_fine_grained = RewTerm(
-        func=manipulation_mdp.position_command_error_tanh,
-        weight=2.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="right_wrist_yaw_link"),
-            "std": 0.05,
-            "command_name": "right_ee_pose",
-        },
     )
 
     # Termination penalty
@@ -300,8 +277,8 @@ class G1WholeBodyActionsCfg:
         waist_joint_names=WAIST_JOINT_NAMES,
         leg_joint_names=LEG_JOINT_NAMES,
         # Policy configuration - modify these as needed
-        hand_policy=g1_mdp.PolicyType.IK,    # IK, IL, or RL
-        arm_policy=g1_mdp.PolicyType.IK,     # IK, IL, or RL  
+        hand_policy=g1_mdp.PolicyType.RL,    # IK, IL, or RL
+        arm_policy=g1_mdp.PolicyType.RL,     # IK, IL, or RL  
         waist_policy=g1_mdp.PolicyType.RL,   # IK, IL, or RL
         leg_policy=g1_mdp.PolicyType.RL,     # IK, IL, or RL
         scale=0.5,
@@ -331,15 +308,6 @@ class G1WholeBodyObservationsCfg:
         velocity_commands = ObsTerm(
             func=mdp.generated_commands,
             params={"command_name": "base_velocity"},
-        )
-        # End-effector pose commands (if using manipulation)
-        left_ee_pose_command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "left_ee_pose"},
-        )
-        right_ee_pose_command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "right_ee_pose"},
         )
         # Joint states for all joints (for awareness)
         joint_pos = ObsTerm(
@@ -375,14 +343,6 @@ class G1WholeBodyObservationsCfg:
             func=mdp.generated_commands,
             params={"command_name": "base_velocity"},
         )
-        left_ee_pose_command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "left_ee_pose"},
-        )
-        right_ee_pose_command = ObsTerm(
-            func=mdp.generated_commands,
-            params={"command_name": "right_ee_pose"},
-        )
         # Joint states with history for all joints
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
@@ -409,7 +369,7 @@ class G1WholeBodyObservationsCfg:
 
 @configclass
 class G1WholeBodyCommandsCfg:
-    """Command generators for base velocity and end-effector poses."""
+    """Command generators for base velocity control."""
     
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
@@ -423,36 +383,6 @@ class G1WholeBodyCommandsCfg:
             lin_vel_y=(-1.0, 1.0),
             ang_vel_z=(-1.0, 1.0),
             heading=(-math.pi, math.pi),
-        ),
-    )
-
-    left_ee_pose = mdp.UniformPoseCommandCfg(
-        asset_name="robot",
-        body_name="left_wrist_yaw_link",
-        resampling_time_range=(1.0, 3.0),
-        debug_vis=False,
-        ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.10, 0.50),
-            pos_y=(0.05, 0.50),
-            pos_z=(-0.20, 0.20),
-            roll=(-0.1, 0.1),
-            pitch=(-0.1, 0.1),
-            yaw=(math.pi / 2.0 - 0.1, math.pi / 2.0 + 0.1),
-        ),
-    )
-
-    right_ee_pose = mdp.UniformPoseCommandCfg(
-        asset_name="robot",
-        body_name="right_wrist_yaw_link",
-        resampling_time_range=(1.0, 3.0),
-        debug_vis=False,
-        ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.10, 0.50),
-            pos_y=(-0.50, -0.05),
-            pos_z=(-0.20, 0.20),
-            roll=(-0.1, 0.1),
-            pitch=(-0.1, 0.1),
-            yaw=(-math.pi / 2.0 - 0.1, -math.pi / 2.0 + 0.1),
         ),
     )
 
@@ -538,17 +468,26 @@ class G1WholeBodyTerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = TermTerm(func=mdp.time_out, time_out=True)
-    base_contact = TermTerm(
+    base_contact_pelvis = TermTerm(
         func=mdp.illegal_contact,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]),
             "threshold": 1.0,
         },
     )
+    base_contact_torso = TermTerm(
+        func=mdp.illegal_contact,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link"]),
+            "threshold": 1.0,
+        },
+    )
+    '''
     base_orientation = TermTerm(
         func=mdp.bad_orientation,
         params={"limit_angle": 1.0},
     )
+    '''
     base_height = TermTerm(
         func=mdp.root_height_below_minimum,
         params={"minimum_height": 0.3},
@@ -609,14 +548,17 @@ class G1WholeBodyEnvCfg_PLAY(G1WholeBodyEnvCfg):
 # Specialized configurations for different control scenarios
 
 @configclass  
-class G1WholeBodyEnvCfg_LowerBodyRL(G1WholeBodyEnvCfg):
-    """Configuration where only lower body (waist + legs) is RL-controlled."""
+class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
+    """Configuration where upper body uses IK and lower body uses RL."""
     
     def __post_init__(self) -> None:
         super().__post_init__()
         # Upper body uses IK
         self.actions.joint_pos.hand_policy = g1_mdp.PolicyType.IK
         self.actions.joint_pos.arm_policy = g1_mdp.PolicyType.IK
+        #TODO
+        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots/g1_29dof_with_hand.urdf"
+        self.actions.joint_pos.mesh_path = None
         # Lower body uses RL
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL

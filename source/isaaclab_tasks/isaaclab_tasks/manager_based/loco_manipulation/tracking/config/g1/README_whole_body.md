@@ -45,9 +45,11 @@ g1/
 - **`Isaac-Tracking-WholeBody-G1-Play-v0`**: 플레이/테스트용 (50 envs)
 
 ### 특화 환경
-- **`Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0`**: Lower body만 RL 제어
+- **`Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0`**: Upper body는 IK, Lower body는 RL
 - **`Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0`**: Upper body는 IL, Lower body는 RL
 - **`Isaac-Tracking-WholeBody-G1-FullRL-v0`**: 모든 관절 RL 제어
+
+**모든 환경은 base_velocity 명령만 사용하며, end-effector 제어는 IK/IL을 통해 내부적으로 처리됩니다.**
 
 
 
@@ -232,7 +234,7 @@ class CustomRewardsCfg(G1WholeBodyRewardsCfg):
 
 | 환경 | Hand | Arm | Waist | Leg | RL Dim | 용도 |
 |------|------|-----|-------|-----|--------|------|
-| LowerBodyRL | IK | IK | RL | RL | 15 | 보행 학습 |
+| UpperBodyIK | IK | IK | RL | RL | 15 | 보행 학습 |
 | UpperBodyIL | IL | IL | RL | RL | 15 | IL+RL 결합 |
 | FullRL | RL | RL | RL | RL | 43 | 전신 학습 |
 | WholeBody | IK | IK | RL | RL | 15 | 기본 설정 |
@@ -250,12 +252,12 @@ class CustomRewardsCfg(G1WholeBodyRewardsCfg):
 Whole Body 환경은 다양한 정책 조합을 지원합니다:
 
 ```python
-# Lower Body RL + Upper Body IK
-env = gym.make("Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0")
-
-# Full RL Control
-env = gym.make("Isaac-Tracking-WholeBody-G1-FullRL-v0")
+# Upper Body IK + Lower Body RL (가장 일반적)
+env = gym.make("Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0")
 
 # Upper Body IL + Lower Body RL
 env = gym.make("Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0")
+
+# Full RL Control (고급 사용자용)
+env = gym.make("Isaac-Tracking-WholeBody-G1-FullRL-v0")
 ```

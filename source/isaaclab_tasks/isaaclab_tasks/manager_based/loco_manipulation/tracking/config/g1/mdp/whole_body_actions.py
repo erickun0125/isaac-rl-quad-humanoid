@@ -22,8 +22,13 @@ from isaaclab.assets import Articulation
 from isaaclab.managers.action_manager import ActionTerm, ActionTermCfg
 from isaaclab.utils import configclass
 
-from ..upper_body_IK import UpperBodyIKController, CircularTrajectoryGenerator
-from ..upper_body_IL import UpperBodyILController, DummyILModel
+import numpy as np
+from ..upper_body_controller import (
+	CircularTrajectoryGenerator,
+	UpperBodyIKController,
+	UpperBodyILController,
+	DummyILModel,
+)
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -302,14 +307,24 @@ class WholeBodyJointPositionAction(ActionTerm):
         # Find the indices of this group within the RL-controlled joints
         group_indices = self._joint_group_indices[group]
         
+        # Convert to tensor if needed
+        if isinstance(group_indices, list):
+            group_indices_tensor = torch.tensor(group_indices, device=self.device, dtype=torch.long)
+        else:
+            group_indices_tensor = group_indices
+        
         # Find where these indices appear in the RL joint indices
-        rl_group_mask = torch.isin(self._rl_joint_indices, group_indices)
+        rl_group_mask = torch.isin(self._rl_joint_indices, group_indices_tensor)
         
         if rl_group_mask.any():
             return self._rl_joint_pos_target[:, rl_group_mask]
         else:
             # Return zeros if this group is not RL-controlled
-            return torch.zeros(self.num_envs, len(group_indices), device=self.device)
+            if isinstance(group_indices, list):
+                group_size = len(group_indices)
+            else:
+                group_size = group_indices.numel()
+            return torch.zeros(self.num_envs, group_size, device=self.device)
     
     def _get_current_arm_joint_positions(self) -> np.ndarray:
         """Get current arm joint positions for Pink IK solver.
