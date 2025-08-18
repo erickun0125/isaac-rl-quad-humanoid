@@ -21,15 +21,19 @@ from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
 from isaaclab.assets import Articulation
-from isaaclab.controllers.pink_ik import PinkIKController
-from isaaclab.controllers.pink_ik_cfg import PinkIKControllerCfg
 
+# Try to import Pink IK components
 try:
+    from isaaclab.controllers.pink_ik import PinkIKController
+    from isaaclab.controllers.pink_ik_cfg import PinkIKControllerCfg
     from pink.tasks import FrameTask
     PINK_AVAILABLE = True
-except ImportError:
-    print("Warning: Pink IK not available. Falling back to simple IK solver.")
+except ImportError as e:
+    print(f"Warning: Pink IK not available ({e}). Falling back to simple IK.")
     PINK_AVAILABLE = False
+    PinkIKController = None
+    PinkIKControllerCfg = None
+    FrameTask = None
 
 
 class TrajectoryGenerator(ABC):
@@ -258,7 +262,7 @@ class UpperBodyIKController:
             
     def _setup_pink_ik_controller(self, urdf_path: str, mesh_path: Optional[str] = None):
         """Setup Pink IK controller with G1 specific configuration."""
-        if not PINK_AVAILABLE:
+        if not PINK_AVAILABLE or FrameTask is None or PinkIKControllerCfg is None:
             raise ImportError("Pink IK is not available")
             
         # Create Pink IK tasks for left and right end-effectors
@@ -287,6 +291,8 @@ class UpperBodyIKController:
         )
         
         # Initialize Pink IK controller
+        if PinkIKController is None:
+            raise ImportError("PinkIKController is not available")
         self.pink_ik_controller = PinkIKController(pink_cfg, device=self.device)
         self.pink_ik_controller.initialize()
         
