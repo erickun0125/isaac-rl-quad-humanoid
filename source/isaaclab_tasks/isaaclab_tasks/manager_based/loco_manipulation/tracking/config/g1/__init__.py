@@ -33,23 +33,54 @@ gym.register(
     },
 )
 
-# Custom enhanced environments with asymmetric observations and custom agent
+# Whole body control environments with multi-policy support
 gym.register(
-    id="Isaac-Tracking-LocoManip-G1-Custom-v0",
+    id="Isaac-Tracking-WholeBody-G1-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.custom_loco_manip_env_cfg:G1CustomLocoManipEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.custom_rsl_rl_ppo_cfg:G1CustomLocoManipPPORunnerCfg",
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
     },
 )
 
 gym.register(
-    id="Isaac-Tracking-LocoManip-G1-Custom-Play-v0",
+    id="Isaac-Tracking-WholeBody-G1-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.custom_loco_manip_env_cfg:G1CustomLocoManipEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.custom_rsl_rl_ppo_cfg:G1CustomLocoManipPPORunnerCfg",
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
+    },
+)
+
+# Specialized whole body configurations
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_LowerBodyRL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1LowerBodyOnlyPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0", 
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_UpperBodyIL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-FullRL-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv", 
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_FullRL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1FullRLPPORunnerCfg",
     },
 )

@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Agents for Unitree G1 Humanoid Locomanipulation tasks."""
+"""Custom MDP functions for G1 control environments."""
 
-from .rsl_rl_ppo_cfg import *
-from .whole_body_rsl_rl_ppo_cfg import *
+from .whole_body_actions import *
