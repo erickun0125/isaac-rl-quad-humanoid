@@ -127,5 +127,5 @@ This project is licensed under the BSD-3-Clause License - see the [LICENSE](LICE
 
 **Contact**: [erickun0125@snu.ac.kr]   
 **Project Duration**: 2025    
-**Software Platform**: IsaacLab    
+**Base Repository**: IsaacLab    
 **Hardware Platform**: Unitree Go2 Edu
