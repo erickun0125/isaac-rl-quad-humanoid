@@ -1,10 +1,10 @@
-# Isaac Lab RL Environments for Quadruped and Humanoid Robots
+# Custom IsaacLab RL Environments for Quadruped and Humanoid Robots
 
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html)
 [![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
-[![License](https://img.shields.io/badge/license-BSD--3-clause-yellow.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-This repository contains Isaac Lab-based reinforcement learning policy implementations for both **quadruped** and **humanoid** robots. 
+This repository contains IsaacLab based reinforcement learning policy implementations for both **quadruped** and **humanoid** robots. 
 
 ## Repository Structure
 
@@ -13,14 +13,15 @@ This repository contains Isaac Lab-based reinforcement learning policy implement
 
 ## Current Branch: Unitree Go2 Locomotion (feat/go2)
 
-This branch presents a implementation of two critical locomotion tasks for the Unitree Go2 quadruped robot using the NVIDIA Isaac Lab framework. The work was developed during a **Internship at Sequor Robotics** as demonstration RL locomotion policies for **Sim2Real Pipeline System**.
+This branch presents a implementation of two critical locomotion tasks for the Unitree Go2 quadruped robot using the NVIDIA Isaac Lab framework. The work was developed during a **Internship at Sequor Robotics** as demonstration RL policies for developing **Sim2Real Pipeline** system.
+(For feat/g1, I am implementing a VLA directed Loco-manipulation policy that connects Imitation Learning based VLA policy (GR00T-N1.5 available as open source) and Reinforcement Learning based Whole Body Control. It is still unfinished and will continue to be updated.)
 
 ### Important Note
-The RL policy training environments and methodologies presented here represent the **publicly shareable portion** of the internship work. The proprietary **Sim2Real pipeline and deployment infrastructure remain confidential** and are not included in this repository, as they constitute Sequor Robotics' intellectual property.
+The RL environments and methodologies presented here represent the **publicly shareable portion** of the internship work. The proprietary **Sim2Real pipeline and deployment infrastructure remain confidential** and are not included in this repository, as they constitute Sequor Robotics' intellectual property.
 
-Our work demonstrates successful sim-to-real transfer, achieving robust performance on the physical Unitree Go2 Edu robot through Sequor Sim2Real Pipeline.
+Our work demonstrates successful sim-to-real transfer, achieving robust performance on the real Unitree Go2 Edu robot through Sequor Sim2Real Pipeline.
 
-## Abstract
+## Quadruped Locomotion Tasks
 
 We implement and evaluate two fundamental locomotion behaviors: **Recovery** (getting up from fallen states) and **Velocity Tracking** (following commanded velocities). Our approach leverages manager based environemnt in IsaacLab and ppo runner in RSLRL.
 
@@ -70,7 +71,7 @@ We implement and evaluate two fundamental locomotion behaviors: **Recovery** (ge
 ### Prerequisites
 - NVIDIA Isaac Sim 4.5+
 - Python 3.10+
-- CUDA 11.8+
+- CUDA 12.1+
 - Isaac Lab framework
 
 
