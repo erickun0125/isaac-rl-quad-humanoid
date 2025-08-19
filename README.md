@@ -31,18 +31,11 @@ We implement and evaluate two fundamental locomotion behaviors: **Recovery** (ge
 <tr>
 <td width="50%" align="center">
 <h4>Simulation</h4>
-<video width="100%" controls preload="metadata">
-  <source src="./docs/source/go2/recovery_sim.webm" type="video/webm">
-  <source src="./docs/source/go2/recovery_real.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="./docs/source/go2/recovery_sim.gif" width="100%" alt="Recovery Simulation">
 </td>
 <td width="50%" align="center">
 <h4>Real Robot</h4>
-<video width="100%" controls preload="metadata">
-  <source src="./docs/source/go2/recovery_real.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="./docs/source/go2/recovery_real.gif" width="100%" alt="Recovery Real Robot">
 </td>
 </tr>
 </table>
@@ -52,18 +45,11 @@ We implement and evaluate two fundamental locomotion behaviors: **Recovery** (ge
 <tr>
 <td width="50%" align="center">
 <h4>Simulation</h4>
-<video width="100%" controls preload="metadata">
-  <source src="./docs/source/go2/velocity_sim.webm" type="video/webm">
-  <source src="./docs/source/go2/velocity_real.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="./docs/source/go2/velocity_sim.gif" width="100%" alt="Velocity Tracking Simulation">
 </td>
 <td width="50%" align="center">
 <h4>Real Robot</h4>
-<video width="100%" controls preload="metadata">
-  <source src="./docs/source/go2/velocity_real.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="./docs/source/go2/velocity_real.gif" width="100%" alt="Velocity Tracking Real Robot">
 </td>
 </tr>
 </table>
