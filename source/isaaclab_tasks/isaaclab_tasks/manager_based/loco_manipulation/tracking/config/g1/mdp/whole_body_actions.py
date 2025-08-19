@@ -166,7 +166,8 @@ class WholeBodyJointPositionAction(ActionTerm):
         
         # Check if we need IK controller
         if PolicyType.IK in [self._group_policies[JointGroup.HAND], self._group_policies[JointGroup.ARM]]:
-            trajectory_generator = CircularTrajectoryGenerator(device=self.device)
+            # Create trajectory generator based on configuration
+            trajectory_generator = self._create_trajectory_generator(cfg)
             
             # Get URDF path for Pink IK (if available)
             urdf_path = getattr(cfg, 'urdf_path', None)
@@ -182,16 +183,8 @@ class WholeBodyJointPositionAction(ActionTerm):
             
         # Check if we need IL controller
         if PolicyType.IL in [self._group_policies[JointGroup.HAND], self._group_policies[JointGroup.ARM]]:
-            # Create dummy IL models for now
-            arm_model = DummyILModel(output_dim=len(self._joint_group_indices[JointGroup.ARM]), device=self.device)
-            hand_model = DummyILModel(output_dim=len(self._joint_group_indices[JointGroup.HAND]), device=self.device)
-            
-            self._il_controller = UpperBodyILController(
-                robot=self._asset,
-                arm_model=arm_model,
-                hand_model=hand_model,
-                device=self.device
-            )
+            # Create IL models and controller based on configuration
+            self._il_controller = self._create_il_controller(cfg)
 
         # Initialize action buffers
         self._rl_joint_pos_target = torch.zeros(self.num_envs, self._rl_joint_count, device=self.device)
@@ -202,6 +195,80 @@ class WholeBodyJointPositionAction(ActionTerm):
         
         # Track simulation time for controllers
         self._sim_time = 0.0
+
+        print(f"[INFO] WholeBodyJointPositionAction initialized with {self._rl_joint_count} RL-controlled joints")
+        print(f"[INFO] Action dimension: {self._rl_joint_count}")
+    
+    def _create_trajectory_generator(self, cfg: WholeBodyJointPositionActionCfg) -> "TrajectoryGenerator":
+        """Create trajectory generator based on configuration.
+        
+        Args:
+            cfg: Action configuration
+            
+        Returns:
+            Configured trajectory generator
+        """
+        trajectory_type = getattr(cfg, 'trajectory_generator_type', 'circular')
+        trajectory_params = getattr(cfg, 'trajectory_generator_params', None) or {}
+        
+        if trajectory_type == "circular":
+            return CircularTrajectoryGenerator(device=self.device, **trajectory_params)
+        else:
+            # Default to circular for now
+            print(f"[WARNING] Trajectory generator type '{trajectory_type}' not implemented, using circular")
+            return CircularTrajectoryGenerator(device=self.device, **trajectory_params)
+    
+    def _create_il_controller(self, cfg: WholeBodyJointPositionActionCfg) -> "UpperBodyILController":
+        """Create IL controller based on configuration.
+        
+        Args:
+            cfg: Action configuration
+            
+        Returns:
+            Configured IL controller
+        """
+        policy_type = getattr(cfg, 'upper_body_policy_type', 'separate')
+        model_path = getattr(cfg, 'upper_body_policy_model_path', None)
+        
+        if policy_type == "unified":
+            # Unified mode: single model for both arm and hand
+            upper_body_dim = len(self._joint_group_indices[JointGroup.ARM]) + len(self._joint_group_indices[JointGroup.HAND])
+            upper_body_model = DummyILModel(output_dim=upper_body_dim, device=self.device)
+            
+            if model_path:
+                try:
+                    upper_body_model.load_model(model_path)
+                    print(f"[INFO] Loaded unified upper body IL model from {model_path}")
+                except Exception as e:  # pylint: disable=broad-except
+                    print(f"[WARNING] Failed to load unified IL model: {e}")
+            
+            return UpperBodyILController(
+                robot=self._asset,
+                upper_body_model=upper_body_model,
+                policy_type="unified",
+                device=self.device
+            )
+        else:
+            # Separate mode: individual models for arm and hand
+            arm_model = DummyILModel(output_dim=len(self._joint_group_indices[JointGroup.ARM]), device=self.device)
+            hand_model = DummyILModel(output_dim=len(self._joint_group_indices[JointGroup.HAND]), device=self.device)
+            
+            if model_path:
+                try:
+                    # In separate mode, assume model_path contains both models
+                    arm_model.load_model(f"{model_path}/arm_model.pt")
+                    hand_model.load_model(f"{model_path}/hand_model.pt")
+                    print(f"[INFO] Loaded separate arm/hand IL models from {model_path}")
+                except Exception as e:  # pylint: disable=broad-except
+                    print(f"[WARNING] Failed to load separate IL models: {e}")
+            
+            return UpperBodyILController(
+                robot=self._asset,
+                arm_model=arm_model,
+                hand_model=hand_model,
+                policy_type="separate",
+                device=self.device
+            )
 
     @property
     def action_dim(self) -> int:
@@ -450,3 +517,17 @@ class WholeBodyJointPositionActionCfg(ActionTermCfg):
     
     mesh_path: str | None = None
     """Path to mesh files for Pink IK controller."""
+    
+    # Trajectory generator configuration (for IK policy)
+    trajectory_generator_type: str = "circular"
+    """Type of trajectory generator for IK policy. Options: 'circular', 'linear', 'custom'."""
+    
+    trajectory_generator_params: dict | None = None
+    """Parameters for the trajectory generator. If None, default parameters will be used."""
+    
+    # Upper body IL policy configuration
+    upper_body_policy_type: str = "separate"
+    """Type of upper body IL policy. Options: 'separate' (arm and hand separate), 'unified' (single policy for both)."""
+    
+    upper_body_policy_model_path: str | None = None
+    """Path to the upper body IL policy model file. If None, dummy model will be used."""

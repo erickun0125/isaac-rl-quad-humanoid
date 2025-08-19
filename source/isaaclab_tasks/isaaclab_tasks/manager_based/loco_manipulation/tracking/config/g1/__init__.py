@@ -34,27 +34,9 @@ gym.register(
 )
 
 # Whole body control environments with multi-policy support
-gym.register(
-    id="Isaac-Tracking-WholeBody-G1-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
-    },
-)
+# Note: G1WholeBodyEnvCfg and G1WholeBodyEnvCfg_PLAY are base classes, not for direct execution
 
-gym.register(
-    id="Isaac-Tracking-WholeBody-G1-Play-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
-    },
-)
-
-# Specialized whole body configurations
+# Actual executable whole body configurations
 gym.register(
     id="Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -71,7 +53,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_UpperBodyIL",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1WholeBodyPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1LowerBodyOnlyPPORunnerCfg",
     },
 )
 
@@ -81,6 +63,37 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_FullRL",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1FullRLPPORunnerCfg",
+    },
+)
+
+# Play versions for interactive testing
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-UpperBodyIK-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_UpperBodyIK_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1LowerBodyOnlyPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-UpperBodyIL-Play-v0", 
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_UpperBodyIL_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1LowerBodyOnlyPPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="Isaac-Tracking-WholeBody-G1-FullRL-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv", 
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.whole_body_env_cfg:G1WholeBodyEnvCfg_FullRL_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.whole_body_rsl_rl_ppo_cfg:G1FullRLPPORunnerCfg",
     },
 )

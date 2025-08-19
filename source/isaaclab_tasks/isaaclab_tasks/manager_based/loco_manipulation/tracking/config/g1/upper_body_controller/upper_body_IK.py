@@ -49,7 +49,7 @@ class CircularTrajectoryGenerator(TrajectoryGenerator):
     
     def __init__(
         self,
-        center: Tuple[float, float, float] = (0.3, 0.0, 0.0),
+        center: Tuple[float, float, float] = (0.3, 0.0, 0.3),
         radius: float = 0.1,
         frequency: float = 0.5,
         device: str = "cuda:0"
@@ -154,23 +154,25 @@ class SimpleIKSolver:
         # Using law of cosines
         cos_elbow = (self.upper_arm_length**2 + self.forearm_length**2 - distance**2) / \
                    (2 * self.upper_arm_length * self.forearm_length)
-        cos_elbow = torch.clamp(cos_elbow, -1.0, 1.0)
+        cos_elbow = torch.clamp(torch.tensor(cos_elbow, device=self.device), -1.0, 1.0)
         elbow_angle = torch.acos(cos_elbow)
         
         # Shoulder pitch calculation
         alpha = torch.atan2(target_rel[2], torch.norm(target_rel[:2]))
-        beta = torch.acos((self.upper_arm_length**2 + distance**2 - self.forearm_length**2) / \
-                         (2 * self.upper_arm_length * distance))
+        cos_beta = (self.upper_arm_length**2 + distance**2 - self.forearm_length**2) / \
+                  (2 * self.upper_arm_length * distance)
+        cos_beta = torch.clamp(torch.tensor(cos_beta, device=self.device), -1.0, 1.0)
+        beta = torch.acos(cos_beta)
         shoulder_pitch = alpha - beta
         
         # Shoulder yaw and roll (simplified)
         shoulder_yaw = torch.atan2(target_rel[1], target_rel[0])
-        shoulder_roll = 0.0  # Simplified
+        shoulder_roll = torch.tensor(0.0, device=self.device)  # Simplified
         
         # Wrist angles (simplified to maintain orientation)
-        wrist_roll = 0.0
-        wrist_pitch = 0.0
-        wrist_yaw = 0.0
+        wrist_roll = torch.tensor(0.0, device=self.device)
+        wrist_pitch = torch.tensor(0.0, device=self.device)
+        wrist_yaw = torch.tensor(0.0, device=self.device)
         
         # Return joint angles
         joint_angles = torch.tensor([

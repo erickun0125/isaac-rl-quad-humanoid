@@ -12,8 +12,8 @@
 
 ### 3가지 정책 타입 (그룹별 설정 가능)
 - **RL Policy**: 강화학습으로 제어
-- **IL Policy**: 모방학습으로 제어  
-- **IK Policy**: 역기구학 솔버로 제어 (Pink IK 또는 Simple IK)
+- **IL Policy**: 모방학습으로 제어 (Separate/Unified 모드 지원)
+- **IK Policy**: 역기구학 솔버로 제어 (Pink IK 또는 Simple IK 자동 fallback)
 
 ### 유연한 제어 구성
 - **Upper Body** = Hand + Arm (28 DOF)
@@ -25,14 +25,15 @@
 ```
 g1/
 ├── whole_body_env_cfg.py           # 메인 whole body 환경 설정
-├── upper_body_IK.py               # IK 컨트롤러 모듈
-├── upper_body_IL.py               # IL 컨트롤러 모듈  
+├── upper_body_controller/          # Upper body 컨트롤러 모듈
+│   ├── __init__.py
+│   ├── upper_body_IK.py           # IK 컨트롤러 (Pink IK + Simple IK)
+│   └── upper_body_IL.py           # IL 컨트롤러 (Separate + Unified 모드)
 ├── mdp/
 │   ├── __init__.py
-│   ├── lower_body_actions.py      # 기존 lower body action 클래스
-│   └── whole_body_actions.py      # 새로운 whole body action 클래스
+│   └── whole_body_actions.py      # 멀티 정책 whole body action 클래스
 ├── agents/
-│   ├── lower_body_rsl_rl_ppo_cfg.py
+│   ├── rsl_rl_ppo_cfg.py          # 기본 PPO 설정
 │   └── whole_body_rsl_rl_ppo_cfg.py # Whole body PPO 설정
 ├── test_whole_body_env.py         # 테스트 스크립트
 └── README_whole_body.md           # 이 파일
@@ -40,16 +41,49 @@ g1/
 
 ## 🎯 등록된 환경
 
-### 기본 환경
-- **`Isaac-Tracking-WholeBody-G1-v0`**: 기본 whole body 환경 (Hand+Arm=IK, Waist+Leg=RL)
-- **`Isaac-Tracking-WholeBody-G1-Play-v0`**: 플레이/테스트용 (50 envs)
-
-### 특화 환경
+### 실제 실행 환경 (Training/Evaluation)
 - **`Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0`**: Upper body는 IK, Lower body는 RL
-- **`Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0`**: Upper body는 IL, Lower body는 RL
+- **`Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0`**: Upper body는 IL (Unified 모드), Lower body는 RL
 - **`Isaac-Tracking-WholeBody-G1-FullRL-v0`**: 모든 관절 RL 제어
 
+### 플레이/테스트 환경 (Interactive Testing)
+- **`Isaac-Tracking-WholeBody-G1-UpperBodyIK-Play-v0`**: UpperBodyIK 플레이 버전 (50 envs)
+- **`Isaac-Tracking-WholeBody-G1-UpperBodyIL-Play-v0`**: UpperBodyIL 플레이 버전 (50 envs)
+- **`Isaac-Tracking-WholeBody-G1-FullRL-Play-v0`**: FullRL 플레이 버전 (50 envs)
+
+> **참고**: `G1WholeBodyEnvCfg`와 `G1WholeBodyEnvCfg_PLAY`는 베이스 클래스로, 직접 실행용이 아닙니다.
+
 **모든 환경은 base_velocity 명령만 사용하며, end-effector 제어는 IK/IL을 통해 내부적으로 처리됩니다.**
+
+## ⚙️ 설정 옵션
+
+### Trajectory Generator 설정 (IK Policy용)
+```python
+# whole_body_env_cfg.py에서
+actions.joint_pos.trajectory_generator_type = "circular"  # "circular", "linear", "custom"
+actions.joint_pos.trajectory_generator_params = {
+    "radius": 0.1,
+    "frequency": 0.5
+}
+```
+
+### Upper Body IL Policy 설정
+```python
+# Separate 모드 (팔과 손 개별 모델)
+actions.joint_pos.upper_body_policy_type = "separate"
+actions.joint_pos.upper_body_policy_model_path = "/path/to/models"  # arm_model.pt, hand_model.pt 포함
+
+# Unified 모드 (단일 통합 모델)
+actions.joint_pos.upper_body_policy_type = "unified"
+actions.joint_pos.upper_body_policy_model_path = "/path/to/unified_model.pt"
+```
+
+### Pink IK 설정
+```python
+# Pink IK 활성화 (URDF 경로 필수)
+actions.joint_pos.urdf_path = "/path/to/robot.urdf"
+actions.joint_pos.mesh_path = "/path/to/meshes"  # 선택사항
+```
 
 
 
@@ -127,7 +161,7 @@ import gymnasium as gym
 import isaaclab_tasks
 
 # Lower body RL + Upper body IK 환경
-env = gym.make("Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0", num_envs=64)
+env = gym.make("Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0", num_envs=64)
 
 # 환경 정보 확인
 print(f"RL Action dimension: {env.action_space}")
@@ -143,28 +177,36 @@ for step in range(1000):
 env.close()
 ```
 
-### 2. 테스트 스크립트 실행
-```bash
-# Lower body RL 환경 테스트
-python test_whole_body_env.py --env Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0 --num_envs 64
+### 2. Play 환경 사용법 (대화형 테스트)
+```python
+import gymnasium as gym
+import isaaclab_tasks
 
-# Full RL 환경 테스트  
-python test_whole_body_env.py --env Isaac-Tracking-WholeBody-G1-FullRL-v0 --num_envs 32
-
-# Upper body IL 환경 테스트
-python test_whole_body_env.py --env Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0 --num_envs 64
+# Play 환경은 적은 수의 환경으로 시각적 테스트에 적합
+env = gym.make("Isaac-Tracking-WholeBody-G1-UpperBodyIK-Play-v0")
+# 자동으로 50개 환경, 노이즈 비활성화, 시각화 최적화
 ```
 
-### 3. 훈련 실행
+### 3. 학습 스크립트 실행
 ```bash
-# Lower body RL 훈련
-python scripts/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-LowerBodyRL-v0 --num_envs 4096
+# Upper body IK 환경 학습
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-UpperBodyIK-v0
 
-# Full RL 훈련 (더 복잡하므로 적은 환경 수)
-python scripts/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-FullRL-v0 --num_envs 2048
+# Upper body IL 환경 학습
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0
 
-# Upper body IL 훈련
-python scripts/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-UpperBodyIL-v0 --num_envs 4096
+# Full RL 환경 학습
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Tracking-WholeBody-G1-FullRL-v0
+```
+
+### 4. Play 환경으로 테스트
+```bash
+# GUI 모드로 시각적 테스트
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py --task Isaac-Tracking-WholeBody-G1-UpperBodyIK-Play-v0 --num_envs 16
+
+# 다른 Play 환경들
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py --task Isaac-Tracking-WholeBody-G1-UpperBodyIL-Play-v0 --num_envs 16
+./isaaclab.sh -p scripts/reinforcement_learning/rsl_rl/play.py --task Isaac-Tracking-WholeBody-G1-FullRL-Play-v0 --num_envs 16
 ```
 
 ## 🔍 내부 동작 원리

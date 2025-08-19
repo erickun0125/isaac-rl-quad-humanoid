@@ -192,6 +192,7 @@ class G1WholeBodyRewardsCfg:
         weight=-100.0,
     )
 
+    '''
     # Undesired contacts penalty
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
@@ -264,7 +265,7 @@ class G1WholeBodyRewardsCfg:
             "soft_ratio": 0.9,
         },
     )
-
+    '''
 
 @configclass
 class G1WholeBodyActionsCfg:
@@ -286,6 +287,12 @@ class G1WholeBodyActionsCfg:
         # Pink IK configuration (optional - set paths if available)
         urdf_path=None,  # Set to G1 URDF path to enable Pink IK
         mesh_path=None,  # Set to G1 mesh path if needed
+        # Trajectory generator configuration (for IK policy)
+        trajectory_generator_type=None,  # Options: 'circular', 'linear', 'custom'
+        trajectory_generator_params=None,  # Custom parameters for trajectory generator
+        # Upper body IL policy configuration
+        upper_body_policy_type=None,  # Options: 'separate', 'unified'
+        upper_body_policy_model_path=None,  # Path to IL model(s)
     )
 
 
@@ -556,12 +563,18 @@ class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
         # Upper body uses IK
         self.actions.joint_pos.hand_policy = g1_mdp.PolicyType.IK
         self.actions.joint_pos.arm_policy = g1_mdp.PolicyType.IK
-        #TODO
-        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots/g1_29dof_with_hand.urdf"
-        self.actions.joint_pos.mesh_path = None
         # Lower body uses RL
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
+        # IK configuration
+        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots/g1_29dof_with_hand.urdf"
+        self.actions.joint_pos.mesh_path = None
+        # Trajectory generator configuration for IK
+        self.actions.joint_pos.trajectory_generator_type = "circular"
+        self.actions.joint_pos.trajectory_generator_params = {
+            "radius": 0.1,
+            "frequency": 0.5
+        }
 
 
 @configclass
@@ -576,6 +589,9 @@ class G1WholeBodyEnvCfg_UpperBodyIL(G1WholeBodyEnvCfg):
         # Lower body uses RL
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
+        # IL configuration - unified mode example
+        self.actions.joint_pos.upper_body_policy_type = "unified"
+        # self.actions.joint_pos.upper_body_policy_model_path = "/path/to/unified_il_model.pt"  # Uncomment to use real model
 
 
 @configclass
@@ -589,3 +605,44 @@ class G1WholeBodyEnvCfg_FullRL(G1WholeBodyEnvCfg):
         self.actions.joint_pos.arm_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
+
+
+# Play configurations for interactive testing
+
+@configclass
+class G1WholeBodyEnvCfg_UpperBodyIK_PLAY(G1WholeBodyEnvCfg_UpperBodyIK):
+    """Play configuration for UpperBodyIK environment."""
+    
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # Make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # Disable randomization for play
+        self.observations.policy.enable_corruption = False
+
+
+@configclass
+class G1WholeBodyEnvCfg_UpperBodyIL_PLAY(G1WholeBodyEnvCfg_UpperBodyIL):
+    """Play configuration for UpperBodyIL environment."""
+    
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # Make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # Disable randomization for play
+        self.observations.policy.enable_corruption = False
+
+
+@configclass
+class G1WholeBodyEnvCfg_FullRL_PLAY(G1WholeBodyEnvCfg_FullRL):
+    """Play configuration for FullRL environment."""
+    
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        # Make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # Disable randomization for play
+        self.observations.policy.enable_corruption = False
