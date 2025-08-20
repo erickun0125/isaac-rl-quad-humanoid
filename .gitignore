@@ -79,3 +79,8 @@ tests/
 
 # hash files
 *.asset_hash
+
+# mesh files and urdf files for g1
+*.stl
+*.STL
+*.urdf
