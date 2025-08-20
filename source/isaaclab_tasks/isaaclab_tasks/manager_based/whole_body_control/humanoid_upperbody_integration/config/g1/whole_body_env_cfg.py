@@ -175,14 +175,14 @@ class G1WholeBodyRewardsCfg:
 
     # Velocity tracking rewards
     track_lin_vel_xy_exp = RewTerm(
-        func=mdp.track_lin_vel_xy_exp,
-        weight=2.0,
+        func=mdp.track_lin_vel_xy_yaw_frame_exp,
+        weight=1.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
     track_ang_vel_z_exp = RewTerm(
-        func=mdp.track_ang_vel_z_exp,
-        weight=2.0,
+        func=mdp.track_ang_vel_z_world_exp,
+        weight=1.5,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
@@ -200,6 +200,31 @@ class G1WholeBodyRewardsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_LINK_NAMES + HAND_LINK_NAMES), "threshold": 1.0},
     )
     '''
+
+    # Pose rewards
+    joint_deviation_hip = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
+    )
+
+    joint_deviation_arms = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=ARM_JOINT_NAMES,
+            )
+        },
+    )    
+
+    joint_deviation_torso = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=WAIST_JOINT_NAMES)},
+    )
+
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
@@ -209,12 +234,6 @@ class G1WholeBodyRewardsCfg:
     ang_vel_xy_l2 = RewTerm(
         func=mdp.ang_vel_xy_l2,
         weight=-0.05,
-    )
-
-    joint_vel_hip_yaw = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-0.001,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint"])},
     )
 
     flat_orientation_l2 = RewTerm(
@@ -230,6 +249,15 @@ class G1WholeBodyRewardsCfg:
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
             "command_name": "base_velocity",
             "threshold": 0.6,
+        },
+    )
+
+    feet_slide = RewTerm(
+        func=mdp.feet_slide,
+        weight=-0.1,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )
 
@@ -381,14 +409,15 @@ class G1WholeBodyCommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),
-        rel_standing_envs=0.25,
+        rel_standing_envs=0.5,
         rel_heading_envs=1.0,
         heading_command=True,
+        heading_control_stiffness=0.5,
         debug_vis=False,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0),
-            lin_vel_y=(-1.0, 1.0),
-            ang_vel_z=(-1.0, 1.0),
+            lin_vel_x=(-0.0, 0.5),
+            lin_vel_y=(-0.0, 0.0),
+            ang_vel_z=(-0.3, 0.3),
             heading=(-math.pi, math.pi),
         ),
     )
