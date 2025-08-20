@@ -1,6 +1,6 @@
 import torch
 
-def g1_locomani_symmetry(env, obs, actions, obs_type="policy"):  # noqa: ARG001
+def g1_locomanip_symmetry(env, obs, actions, obs_type="policy"):  # noqa: ARG001
     """
     G1 humanoid robot symmetry function for loco-manipulation environment.
     
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     test_actions = torch.randn(batch_size, 29)  # 29 DOF for G1
     
     # Symmetry transformation test
-    mirrored_obs, mirrored_actions = g1_locomani_symmetry(
+    mirrored_obs, mirrored_actions = g1_locomanip_symmetry(
         env=None, obs=policy_obs, actions=test_actions, obs_type="policy"
     )
     
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     # Critic observation test (estimated dimensions)
     critic_obs_dim = 187  # 3 + 1 + 3 + 3 + 3 + 87 + 58 + 29
     critic_obs = torch.randn(batch_size, critic_obs_dim)
-    mirrored_critic_obs, _ = g1_locomani_symmetry(
+    mirrored_critic_obs, _ = g1_locomanip_symmetry(
         env=None, obs=critic_obs, actions=None, obs_type="critic"
     )
     
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     agent_cfg.algorithm.symmetry_cfg = {
         "use_data_augmentation": True,
         "use_mirror_loss": True,
-        "data_augmentation_func": g1_locomani_symmetry,
+        "data_augmentation_func": g1_locomanip_symmetry,
         "mirror_loss_coeff": 0.1,
     }
     

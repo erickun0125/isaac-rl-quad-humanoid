@@ -18,7 +18,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.loco_manip_env_cfg:G1LocoManipEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1LocoManipPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.loco_manip_rsl_rl_ppo_cfg:G1LocoManipPPORunnerCfg",
     },
 )
 
@@ -29,7 +29,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.loco_manip_env_cfg:G1LocoManipEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1LocoManipPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.loco_manip_rsl_rl_ppo_cfg:G1LocoManipPPORunnerCfg",
     },
 )
 

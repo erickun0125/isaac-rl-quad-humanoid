@@ -38,7 +38,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from . import mdp as g1_mdp
 
-from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING
+from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP
 
 # G129 joint names organized by groups
 HAND_JOINT_NAMES = [
@@ -155,7 +155,7 @@ class G1WholeBodySceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # Robots
-    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING)
+    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP)
     robot.prim_path = "{ENV_REGEX_NS}/Robot"
     # Sensors
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
@@ -199,7 +199,7 @@ class G1WholeBodyRewardsCfg:
         weight=-1.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_LINK_NAMES + HAND_LINK_NAMES), "threshold": 1.0},
     )
-
+    '''
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
@@ -225,32 +225,32 @@ class G1WholeBodyRewardsCfg:
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=0.125,
+        weight=0.5,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
             "command_name": "base_velocity",
-            "threshold": 0.8,
+            "threshold": 0.6,
         },
     )
 
     # Joint regularization rewards (for RL-controlled joints)
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
-        weight=-1.0e-5,
+        weight=-1.0e-6,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=ALL_JOINTS)},
     )
 
     joint_accel_l2 = RewTerm(
         func=mdp.joint_acc_l2,
-        weight=-2.5e-7,
+        weight=-1.e-7,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES)},
     )
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2,
-        weight=-0.01,
+        weight=-0.005,
     )
-
+    '''
     joint_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
         weight=-1.0,
@@ -475,6 +475,18 @@ class G1WholeBodyTerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = TermTerm(func=mdp.time_out, time_out=True)
+
+    base_height = TermTerm(
+        func=mdp.root_height_below_minimum,
+        params={"minimum_height": 0.6},
+    )    
+    
+    base_orientation = TermTerm(
+        func=mdp.bad_orientation,
+        params={"limit_angle": 0.6},
+    )
+
+    '''
     base_contact_pelvis = TermTerm(
         func=mdp.illegal_contact,
         params={
@@ -482,23 +494,15 @@ class G1WholeBodyTerminationsCfg:
             "threshold": 1.0,
         },
     )
+    
     base_contact_torso = TermTerm(
         func=mdp.illegal_contact,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link"]),
-            "threshold": 1.0,
+            "threshold": 10.0,
         },
     )
     '''
-    base_orientation = TermTerm(
-        func=mdp.bad_orientation,
-        params={"limit_angle": 1.0},
-    )
-    '''
-    base_height = TermTerm(
-        func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.3},
-    )
 
 
 @configclass
@@ -568,7 +572,7 @@ class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
         # IK configuration
         self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots/g1_29dof_with_hand.urdf"
-        self.actions.joint_pos.mesh_path = None
+        self.actions.joint_pos.mesh_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots"
         # Trajectory generator configuration for IK
         self.actions.joint_pos.trajectory_generator_type = "circular"
         self.actions.joint_pos.trajectory_generator_params = {

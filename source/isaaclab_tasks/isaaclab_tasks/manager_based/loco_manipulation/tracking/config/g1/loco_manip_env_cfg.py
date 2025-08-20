@@ -27,7 +27,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as manipulation_mdp
 
-from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING
+from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP
 
 # G129 specific joint names (29 DOF with DEX3 hands)
 LEG_JOINT_NAMES = [
@@ -143,7 +143,7 @@ class G1LocoManipSceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # Robots
-    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING)
+    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP)
     robot.prim_path = "{ENV_REGEX_NS}/Robot"
     # Sensors
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
@@ -173,7 +173,7 @@ class G1LocoManipRewardsCfg:
         weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
-
+    '''
     # End-effector tracking rewards
     left_ee_pos_tracking = RewTerm(
         func=manipulation_mdp.position_command_error,
@@ -230,23 +230,23 @@ class G1LocoManipRewardsCfg:
             "command_name": "right_ee_pose",
         },
     )
-
+    '''
     # Termination & Undesired Contacts penalty
     termination_penalty = RewTerm(
         func=mdp.is_terminated,
         weight=-100.0,
     )
-
+    '''
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-1.0,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=ARM_LINK_NAMES), "threshold": 1.0},
     )
-
+    '''
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
-        weight=-0.5,
+        weight=-0.1,
     )
 
     ang_vel_xy_l2 = RewTerm(
@@ -262,38 +262,40 @@ class G1LocoManipRewardsCfg:
 
     flat_orientation_l2 = RewTerm(
         func=mdp.flat_orientation_l2,
-        weight=-1.0,
+        weight=-0.1,
     )
 
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=0.125,
+        weight=1.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"]),
             "command_name": "base_velocity",
-            "threshold": 0.8,
+            "threshold": 0.5,
         },
     )
 
     # Joint regularization rewards
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
-        weight=-1.0e-5,
+        weight=-1.0e-6,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
 
     joint_accel_l2 = RewTerm(
         func=mdp.joint_acc_l2,
-        weight=-2.5e-7,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINT_NAMES + WAIST_JOINT_NAMES)},
+        weight=-1.0e-7,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2,
-        weight=-0.01,
+        weight=-0.005,
     )
 
+    '''
+    #limit penalties
     joint_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
         weight=-1.0,
@@ -308,7 +310,7 @@ class G1LocoManipRewardsCfg:
             "soft_ratio": 0.9,
         },
     )
-
+    '''
 
 
 
@@ -319,7 +321,7 @@ class G1LocoManipActionsCfg:
 
     joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot",
-        joint_names=CONTROLLED_JOINTS,
+        joint_names= CONTROLLED_JOINTS,
         scale=0.5,
         use_default_offset=True,
     )
@@ -344,6 +346,7 @@ class G1LocoManipObservationsCfg:
             func=mdp.generated_commands,
             params={"command_name": "base_velocity"},
         )
+        '''
         left_ee_pose_command = ObsTerm(
             func=mdp.generated_commands,
             params={"command_name": "left_ee_pose"},
@@ -352,6 +355,7 @@ class G1LocoManipObservationsCfg:
             func=mdp.generated_commands,
             params={"command_name": "right_ee_pose"},
         )
+        '''
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
@@ -362,9 +366,9 @@ class G1LocoManipObservationsCfg:
             func=mdp.joint_vel_rel,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
             noise=Unoise(n_min=-1.5, n_max=1.5),
-            history_length=3
+            history_length=2
         )
-        actions = ObsTerm(func=mdp.last_action, history_length=3)
+        actions = ObsTerm(func=mdp.last_action, history_length=1)
 
         def __post_init__(self) -> None:
             self.enable_corruption = True
@@ -388,6 +392,7 @@ class G1LocoManipObservationsCfg:
             func=mdp.generated_commands,
             params={"command_name": "base_velocity"},
         )
+        '''
         left_ee_pose_command = ObsTerm(
             func=mdp.generated_commands,
             params={"command_name": "left_ee_pose"},
@@ -396,6 +401,7 @@ class G1LocoManipObservationsCfg:
             func=mdp.generated_commands,
             params={"command_name": "right_ee_pose"},
         )
+        '''
         # Joint states with history
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
@@ -405,11 +411,11 @@ class G1LocoManipObservationsCfg:
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
-            history_length=3
+            history_length=2
         )
         
         # Action history
-        actions = ObsTerm(func=mdp.last_action, history_length=3)
+        actions = ObsTerm(func=mdp.last_action, history_length=1)
 
         def __post_init__(self) -> None:
             self.enable_corruption = False  # Critic gets clean observations
@@ -424,7 +430,7 @@ class G1LocoManipCommandsCfg:
     """Command generators for base velocity and end-effector poses."""
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
+        resampling_time_range=(5.0, 5.0),
         rel_standing_envs=0.25,
         rel_heading_envs=1.0,
         heading_command=True,
@@ -436,7 +442,7 @@ class G1LocoManipCommandsCfg:
             heading=(-math.pi, math.pi),
         ),
     )
-
+    '''
     left_ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name="left_wrist_yaw_link",  # Updated for G129 DEX3 configuration
@@ -466,7 +472,7 @@ class G1LocoManipCommandsCfg:
             yaw=(-math.pi / 2.0 - 0.1, -math.pi / 2.0 + 0.1),
         ),
     )
-
+    '''
 
 @configclass
 class G1LocoManipEventsCfg:
@@ -496,7 +502,7 @@ class G1LocoManipEventsCfg:
             "velocity_range": (0.0, 0.0),
         },
     )
-
+    '''
     # Add an external force to simulate a payload being carried.
     left_hand_force = EventTerm(
         func=mdp.apply_external_force_torque,
@@ -536,7 +542,7 @@ class G1LocoManipEventsCfg:
             },
         },
     )
-    
+    '''
     # randomize the physics material of the robot.
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -588,21 +594,34 @@ class G1LocoManipTerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = TermTerm(func=mdp.time_out, time_out=True)
-    base_contact = TermTerm(
+
+    base_height = TermTerm(
+        func=mdp.root_height_below_minimum,
+        params={"minimum_height": 0.6},
+    )    
+    
+    base_orientation = TermTerm(
+        func=mdp.bad_orientation,
+        params={"limit_angle": 0.6},
+    )
+
+    '''
+    base_contact_pelvis = TermTerm(
         func=mdp.illegal_contact,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["pelvis"]),
             "threshold": 1.0,
         },
     )
-    base_orientation = TermTerm(
-        func=mdp.bad_orientation,
-        params={"limit_angle": 2.0},
+    
+    base_contact_torso = TermTerm(
+        func=mdp.illegal_contact,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["torso_link"]),
+            "threshold": 10.0,
+        },
     )
-    base_height = TermTerm(
-        func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.3},
-    )
+    '''
 
 @configclass
 class G1LocoManipCurriculumCfg:
