@@ -22,14 +22,23 @@ def g1_locomani_symmetry(env, obs, actions, obs_type="policy"):  # noqa: ARG001
     - joint_vel: 58 dims (100:158) - history=2, flatten (29 joints * 2)
     - actions: 29 dims (158:187) - history=1, flatten (29 joints * 1)
     
-    G1 Joint Order (29 DOF) - VERIFIED ACTUAL ORDER:
-    Legs (12 DOF): [left_hip_yaw(0), left_hip_roll(1), left_hip_pitch(2), left_knee(3), left_ankle_pitch(4), left_ankle_roll(5),
-                    right_hip_yaw(6), right_hip_roll(7), right_hip_pitch(8), right_knee(9), right_ankle_pitch(10), right_ankle_roll(11)]
-    Waist (3 DOF): [waist_yaw(12), waist_roll(13), waist_pitch(14)]
-    Arms (14 DOF): [left_shoulder_pitch(15), left_shoulder_roll(16), left_shoulder_yaw(17), left_elbow(18), 
-                    left_wrist_roll(19), left_wrist_pitch(20), left_wrist_yaw(21),
-                    right_shoulder_pitch(22), right_shoulder_roll(23), right_shoulder_yaw(24), right_elbow(25),
-                    right_wrist_roll(26), right_wrist_pitch(27), right_wrist_yaw(28)]
+    G1 Joint Order (29 DOF) - ACTUAL VERIFIED FROM ENVIRONMENT:
+    0: waist_pitch_joint
+    1: left_shoulder_pitch_joint ↔ 2: right_shoulder_pitch_joint
+    3: waist_roll_joint
+    4: left_shoulder_roll_joint ↔ 5: right_shoulder_roll_joint
+    6: waist_yaw_joint
+    7: left_shoulder_yaw_joint ↔ 8: right_shoulder_yaw_joint
+    9: left_hip_pitch_joint ↔ 10: right_hip_pitch_joint
+    11: left_elbow_joint ↔ 12: right_elbow_joint
+    13: left_hip_roll_joint ↔ 14: right_hip_roll_joint
+    15: left_wrist_roll_joint ↔ 16: right_wrist_roll_joint
+    17: left_hip_yaw_joint ↔ 18: right_hip_yaw_joint
+    19: left_wrist_pitch_joint ↔ 20: right_wrist_pitch_joint
+    21: left_knee_joint ↔ 22: right_knee_joint
+    23: left_wrist_yaw_joint ↔ 24: right_wrist_yaw_joint
+    25: left_ankle_pitch_joint ↔ 26: right_ankle_pitch_joint
+    27: left_ankle_roll_joint ↔ 28: right_ankle_roll_joint
     """
     
     # 1. Extend original + mirrored data
@@ -129,139 +138,167 @@ def mirror_joint_history(tensor, start_idx, joint_dim, history_len):
         # Extract joint data for this time step
         joint_data = tensor[:, time_start:time_end].clone()
         
-        # G1 joint mirroring (29 DOF total) - CORRECTED BASED ON ACTUAL ORDER:
-        # Legs: left joints (0-5) <-> right joints (6-11)
-        # Waist (12-14): no mirroring (central joints)
-        # Arms: left joints (15-21) <-> right joints (22-28)
+        # G1 joint mirroring (29 DOF total) - BASED ON ACTUAL VERIFIED ORDER:
+        # The joints are arranged in a mixed pattern, not grouped by body part
+        # We need to swap individual left-right pairs and apply sign flips to yaw/roll joints
         
-        # === LEG JOINTS (0-11): left group (0-5) <-> right group (6-11) ===
-        # Left leg: hip_yaw(0), hip_roll(1), hip_pitch(2), knee(3), ankle_pitch(4), ankle_roll(5)
-        # Right leg: hip_yaw(6), hip_roll(7), hip_pitch(8), knee(9), ankle_pitch(10), ankle_roll(11)
+        # === WAIST JOINTS (central, sign flip only) ===
+        # 0: waist_pitch_joint - no change
+        # 3: waist_roll_joint - sign flip
+        # 6: waist_yaw_joint - sign flip
+        tensor[:, time_start+3] *= -1   # waist_roll_joint
+        tensor[:, time_start+6] *= -1   # waist_yaw_joint
         
-        # Swap left and right leg joint groups
-        tensor[:, time_start+0] = joint_data[:, 6]   # left_hip_yaw = right_hip_yaw
-        tensor[:, time_start+1] = joint_data[:, 7]   # left_hip_roll = right_hip_roll
-        tensor[:, time_start+2] = joint_data[:, 8]   # left_hip_pitch = right_hip_pitch
-        tensor[:, time_start+3] = joint_data[:, 9]   # left_knee = right_knee
-        tensor[:, time_start+4] = joint_data[:, 10]  # left_ankle_pitch = right_ankle_pitch
-        tensor[:, time_start+5] = joint_data[:, 11]  # left_ankle_roll = right_ankle_roll
+        # === LEFT-RIGHT JOINT PAIRS (swap + sign flip for yaw/roll) ===
         
-        tensor[:, time_start+6] = joint_data[:, 0]   # right_hip_yaw = left_hip_yaw
-        tensor[:, time_start+7] = joint_data[:, 1]   # right_hip_roll = left_hip_roll
-        tensor[:, time_start+8] = joint_data[:, 2]   # right_hip_pitch = left_hip_pitch
-        tensor[:, time_start+9] = joint_data[:, 3]   # right_knee = left_knee
-        tensor[:, time_start+10] = joint_data[:, 4]  # right_ankle_pitch = left_ankle_pitch
-        tensor[:, time_start+11] = joint_data[:, 5]  # right_ankle_roll = left_ankle_roll
+        # Shoulder pitch: 1 ↔ 2
+        tensor[:, time_start+1] = joint_data[:, 2]   # left_shoulder_pitch = right_shoulder_pitch
+        tensor[:, time_start+2] = joint_data[:, 1]   # right_shoulder_pitch = left_shoulder_pitch
         
-        # Sign flip for yaw and roll joints (rotation around vertical/sagittal axes)
-        tensor[:, time_start+0] *= -1   # left_hip_yaw (now right_hip_yaw)
-        tensor[:, time_start+1] *= -1   # left_hip_roll (now right_hip_roll)
-        tensor[:, time_start+5] *= -1   # left_ankle_roll (now right_ankle_roll)
-        tensor[:, time_start+6] *= -1   # right_hip_yaw (now left_hip_yaw)
-        tensor[:, time_start+7] *= -1   # right_hip_roll (now left_hip_roll)
-        tensor[:, time_start+11] *= -1  # right_ankle_roll (now left_ankle_roll)
+        # Shoulder roll: 4 ↔ 5 (sign flip)
+        tensor[:, time_start+4] = joint_data[:, 5]   # left_shoulder_roll = right_shoulder_roll
+        tensor[:, time_start+5] = joint_data[:, 4]   # right_shoulder_roll = left_shoulder_roll
+        tensor[:, time_start+4] *= -1  # left_shoulder_roll (now right)
+        tensor[:, time_start+5] *= -1  # right_shoulder_roll (now left)
         
-        # === WAIST JOINTS (12-14): no mirroring needed ===
-        # waist_yaw, waist_roll, waist_pitch - central joints, no left/right symmetry
-        # Sign flip for yaw and roll
-        tensor[:, time_start+12] *= -1  # waist_yaw
-        tensor[:, time_start+13] *= -1  # waist_roll
+        # Shoulder yaw: 7 ↔ 8 (sign flip)
+        tensor[:, time_start+7] = joint_data[:, 8]   # left_shoulder_yaw = right_shoulder_yaw
+        tensor[:, time_start+8] = joint_data[:, 7]   # right_shoulder_yaw = left_shoulder_yaw
+        tensor[:, time_start+7] *= -1  # left_shoulder_yaw (now right)
+        tensor[:, time_start+8] *= -1  # right_shoulder_yaw (now left)
         
-        # === ARM JOINTS (15-28): left group (15-21) <-> right group (22-28) ===
-        # Left arm: shoulder_pitch(15), shoulder_roll(16), shoulder_yaw(17), elbow(18), wrist_roll(19), wrist_pitch(20), wrist_yaw(21)
-        # Right arm: shoulder_pitch(22), shoulder_roll(23), shoulder_yaw(24), elbow(25), wrist_roll(26), wrist_pitch(27), wrist_yaw(28)
+        # Hip pitch: 9 ↔ 10
+        tensor[:, time_start+9] = joint_data[:, 10]  # left_hip_pitch = right_hip_pitch
+        tensor[:, time_start+10] = joint_data[:, 9]  # right_hip_pitch = left_hip_pitch
         
-        # Swap left and right arm joint groups
-        tensor[:, time_start+15] = joint_data[:, 22]  # left_shoulder_pitch = right_shoulder_pitch
-        tensor[:, time_start+16] = joint_data[:, 23]  # left_shoulder_roll = right_shoulder_roll
-        tensor[:, time_start+17] = joint_data[:, 24]  # left_shoulder_yaw = right_shoulder_yaw
-        tensor[:, time_start+18] = joint_data[:, 25]  # left_elbow = right_elbow
-        tensor[:, time_start+19] = joint_data[:, 26]  # left_wrist_roll = right_wrist_roll
-        tensor[:, time_start+20] = joint_data[:, 27]  # left_wrist_pitch = right_wrist_pitch
-        tensor[:, time_start+21] = joint_data[:, 28]  # left_wrist_yaw = right_wrist_yaw
+        # Elbow: 11 ↔ 12
+        tensor[:, time_start+11] = joint_data[:, 12] # left_elbow = right_elbow
+        tensor[:, time_start+12] = joint_data[:, 11] # right_elbow = left_elbow
         
-        tensor[:, time_start+22] = joint_data[:, 15]  # right_shoulder_pitch = left_shoulder_pitch
-        tensor[:, time_start+23] = joint_data[:, 16]  # right_shoulder_roll = left_shoulder_roll
-        tensor[:, time_start+24] = joint_data[:, 17]  # right_shoulder_yaw = left_shoulder_yaw
-        tensor[:, time_start+25] = joint_data[:, 18]  # right_elbow = left_elbow
-        tensor[:, time_start+26] = joint_data[:, 19]  # right_wrist_roll = left_wrist_roll
-        tensor[:, time_start+27] = joint_data[:, 20]  # right_wrist_pitch = left_wrist_pitch
-        tensor[:, time_start+28] = joint_data[:, 21]  # right_wrist_yaw = left_wrist_yaw
+        # Hip roll: 13 ↔ 14 (sign flip)
+        tensor[:, time_start+13] = joint_data[:, 14] # left_hip_roll = right_hip_roll
+        tensor[:, time_start+14] = joint_data[:, 13] # right_hip_roll = left_hip_roll
+        tensor[:, time_start+13] *= -1 # left_hip_roll (now right)
+        tensor[:, time_start+14] *= -1 # right_hip_roll (now left)
         
-        # Sign flip for roll and yaw joints
-        tensor[:, time_start+16] *= -1  # left_shoulder_roll (now right_shoulder_roll)
-        tensor[:, time_start+17] *= -1  # left_shoulder_yaw (now right_shoulder_yaw)
-        tensor[:, time_start+19] *= -1  # left_wrist_roll (now right_wrist_roll)
-        tensor[:, time_start+21] *= -1  # left_wrist_yaw (now right_wrist_yaw)
-        tensor[:, time_start+23] *= -1  # right_shoulder_roll (now left_shoulder_roll)
-        tensor[:, time_start+24] *= -1  # right_shoulder_yaw (now left_shoulder_yaw)
-        tensor[:, time_start+26] *= -1  # right_wrist_roll (now left_wrist_roll)
-        tensor[:, time_start+28] *= -1  # right_wrist_yaw (now left_wrist_yaw)
+        # Wrist roll: 15 ↔ 16 (sign flip)
+        tensor[:, time_start+15] = joint_data[:, 16] # left_wrist_roll = right_wrist_roll
+        tensor[:, time_start+16] = joint_data[:, 15] # right_wrist_roll = left_wrist_roll
+        tensor[:, time_start+15] *= -1 # left_wrist_roll (now right)
+        tensor[:, time_start+16] *= -1 # right_wrist_roll (now left)
+        
+        # Hip yaw: 17 ↔ 18 (sign flip)
+        tensor[:, time_start+17] = joint_data[:, 18] # left_hip_yaw = right_hip_yaw
+        tensor[:, time_start+18] = joint_data[:, 17] # right_hip_yaw = left_hip_yaw
+        tensor[:, time_start+17] *= -1 # left_hip_yaw (now right)
+        tensor[:, time_start+18] *= -1 # right_hip_yaw (now left)
+        
+        # Wrist pitch: 19 ↔ 20
+        tensor[:, time_start+19] = joint_data[:, 20] # left_wrist_pitch = right_wrist_pitch
+        tensor[:, time_start+20] = joint_data[:, 19] # right_wrist_pitch = left_wrist_pitch
+        
+        # Knee: 21 ↔ 22
+        tensor[:, time_start+21] = joint_data[:, 22] # left_knee = right_knee
+        tensor[:, time_start+22] = joint_data[:, 21] # right_knee = left_knee
+        
+        # Wrist yaw: 23 ↔ 24 (sign flip)
+        tensor[:, time_start+23] = joint_data[:, 24] # left_wrist_yaw = right_wrist_yaw
+        tensor[:, time_start+24] = joint_data[:, 23] # right_wrist_yaw = left_wrist_yaw
+        tensor[:, time_start+23] *= -1 # left_wrist_yaw (now right)
+        tensor[:, time_start+24] *= -1 # right_wrist_yaw (now left)
+        
+        # Ankle pitch: 25 ↔ 26
+        tensor[:, time_start+25] = joint_data[:, 26] # left_ankle_pitch = right_ankle_pitch
+        tensor[:, time_start+26] = joint_data[:, 25] # right_ankle_pitch = left_ankle_pitch
+        
+        # Ankle roll: 27 ↔ 28 (sign flip)
+        tensor[:, time_start+27] = joint_data[:, 28] # left_ankle_roll = right_ankle_roll
+        tensor[:, time_start+28] = joint_data[:, 27] # right_ankle_roll = left_ankle_roll
+        tensor[:, time_start+27] *= -1 # left_ankle_roll (now right)
+        tensor[:, time_start+28] *= -1 # right_ankle_roll (now left)
 
 
 def mirror_actions(actions):
     """Mirror actions for left-right symmetry transformation (G1 humanoid robot)"""
     mirrored = actions.clone()
     
-    # G1 joint actions (29 DOF): legs + waist + arms
+    # G1 joint actions (29 DOF) - ACTUAL VERIFIED ORDER
     action_temp = mirrored.clone()
     
-    # === LEG JOINTS (0-11): left group (0-5) <-> right group (6-11) ===
-    # Swap left and right leg joint groups
-    mirrored[:, 0] = action_temp[:, 6]   # left_hip_yaw = right_hip_yaw
-    mirrored[:, 1] = action_temp[:, 7]   # left_hip_roll = right_hip_roll
-    mirrored[:, 2] = action_temp[:, 8]   # left_hip_pitch = right_hip_pitch
-    mirrored[:, 3] = action_temp[:, 9]   # left_knee = right_knee
-    mirrored[:, 4] = action_temp[:, 10]  # left_ankle_pitch = right_ankle_pitch
-    mirrored[:, 5] = action_temp[:, 11]  # left_ankle_roll = right_ankle_roll
+    # === WAIST JOINTS (central, sign flip only) ===
+    # 0: waist_pitch_joint - no change
+    # 3: waist_roll_joint - sign flip
+    # 6: waist_yaw_joint - sign flip
+    mirrored[:, 3] *= -1   # waist_roll_joint
+    mirrored[:, 6] *= -1   # waist_yaw_joint
     
-    mirrored[:, 6] = action_temp[:, 0]   # right_hip_yaw = left_hip_yaw
-    mirrored[:, 7] = action_temp[:, 1]   # right_hip_roll = left_hip_roll
-    mirrored[:, 8] = action_temp[:, 2]   # right_hip_pitch = left_hip_pitch
-    mirrored[:, 9] = action_temp[:, 3]   # right_knee = left_knee
-    mirrored[:, 10] = action_temp[:, 4]  # right_ankle_pitch = left_ankle_pitch
-    mirrored[:, 11] = action_temp[:, 5]  # right_ankle_roll = left_ankle_roll
+    # === LEFT-RIGHT JOINT PAIRS (swap + sign flip for yaw/roll) ===
     
-    # Sign flip for yaw and roll joints
-    mirrored[:, 0] *= -1   # left_hip_yaw (now right_hip_yaw)
-    mirrored[:, 1] *= -1   # left_hip_roll (now right_hip_roll)
-    mirrored[:, 5] *= -1   # left_ankle_roll (now right_ankle_roll)
-    mirrored[:, 6] *= -1   # right_hip_yaw (now left_hip_yaw)
-    mirrored[:, 7] *= -1   # right_hip_roll (now left_hip_roll)
-    mirrored[:, 11] *= -1  # right_ankle_roll (now left_ankle_roll)
+    # Shoulder pitch: 1 ↔ 2
+    mirrored[:, 1] = action_temp[:, 2]   # left_shoulder_pitch = right_shoulder_pitch
+    mirrored[:, 2] = action_temp[:, 1]   # right_shoulder_pitch = left_shoulder_pitch
     
-    # === WAIST JOINTS (12-14): no mirroring, but sign flip for yaw and roll ===
-    mirrored[:, 12] *= -1  # waist_yaw
-    mirrored[:, 13] *= -1  # waist_roll
-    # waist_pitch (14) - no change
+    # Shoulder roll: 4 ↔ 5 (sign flip)
+    mirrored[:, 4] = action_temp[:, 5]   # left_shoulder_roll = right_shoulder_roll
+    mirrored[:, 5] = action_temp[:, 4]   # right_shoulder_roll = left_shoulder_roll
+    mirrored[:, 4] *= -1  # left_shoulder_roll (now right)
+    mirrored[:, 5] *= -1  # right_shoulder_roll (now left)
     
-    # === ARM JOINTS (15-28): left group (15-21) <-> right group (22-28) ===
-    # Swap left and right arm joint groups
-    mirrored[:, 15] = action_temp[:, 22]  # left_shoulder_pitch = right_shoulder_pitch
-    mirrored[:, 16] = action_temp[:, 23]  # left_shoulder_roll = right_shoulder_roll
-    mirrored[:, 17] = action_temp[:, 24]  # left_shoulder_yaw = right_shoulder_yaw
-    mirrored[:, 18] = action_temp[:, 25]  # left_elbow = right_elbow
-    mirrored[:, 19] = action_temp[:, 26]  # left_wrist_roll = right_wrist_roll
-    mirrored[:, 20] = action_temp[:, 27]  # left_wrist_pitch = right_wrist_pitch
-    mirrored[:, 21] = action_temp[:, 28]  # left_wrist_yaw = right_wrist_yaw
+    # Shoulder yaw: 7 ↔ 8 (sign flip)
+    mirrored[:, 7] = action_temp[:, 8]   # left_shoulder_yaw = right_shoulder_yaw
+    mirrored[:, 8] = action_temp[:, 7]   # right_shoulder_yaw = left_shoulder_yaw
+    mirrored[:, 7] *= -1  # left_shoulder_yaw (now right)
+    mirrored[:, 8] *= -1  # right_shoulder_yaw (now left)
     
-    mirrored[:, 22] = action_temp[:, 15]  # right_shoulder_pitch = left_shoulder_pitch
-    mirrored[:, 23] = action_temp[:, 16]  # right_shoulder_roll = left_shoulder_roll
-    mirrored[:, 24] = action_temp[:, 17]  # right_shoulder_yaw = left_shoulder_yaw
-    mirrored[:, 25] = action_temp[:, 18]  # right_elbow = left_elbow
-    mirrored[:, 26] = action_temp[:, 19]  # right_wrist_roll = left_wrist_roll
-    mirrored[:, 27] = action_temp[:, 20]  # right_wrist_pitch = left_wrist_pitch
-    mirrored[:, 28] = action_temp[:, 21]  # right_wrist_yaw = left_wrist_yaw
+    # Hip pitch: 9 ↔ 10
+    mirrored[:, 9] = action_temp[:, 10]  # left_hip_pitch = right_hip_pitch
+    mirrored[:, 10] = action_temp[:, 9]  # right_hip_pitch = left_hip_pitch
     
-    # Sign flip for roll and yaw joints
-    mirrored[:, 16] *= -1  # left_shoulder_roll (now right_shoulder_roll)
-    mirrored[:, 17] *= -1  # left_shoulder_yaw (now right_shoulder_yaw)
-    mirrored[:, 19] *= -1  # left_wrist_roll (now right_wrist_roll)
-    mirrored[:, 21] *= -1  # left_wrist_yaw (now right_wrist_yaw)
-    mirrored[:, 23] *= -1  # right_shoulder_roll (now left_shoulder_roll)
-    mirrored[:, 24] *= -1  # right_shoulder_yaw (now left_shoulder_yaw)
-    mirrored[:, 26] *= -1  # right_wrist_roll (now left_wrist_roll)
-    mirrored[:, 28] *= -1  # right_wrist_yaw (now left_wrist_yaw)
+    # Elbow: 11 ↔ 12
+    mirrored[:, 11] = action_temp[:, 12] # left_elbow = right_elbow
+    mirrored[:, 12] = action_temp[:, 11] # right_elbow = left_elbow
+    
+    # Hip roll: 13 ↔ 14 (sign flip)
+    mirrored[:, 13] = action_temp[:, 14] # left_hip_roll = right_hip_roll
+    mirrored[:, 14] = action_temp[:, 13] # right_hip_roll = left_hip_roll
+    mirrored[:, 13] *= -1 # left_hip_roll (now right)
+    mirrored[:, 14] *= -1 # right_hip_roll (now left)
+    
+    # Wrist roll: 15 ↔ 16 (sign flip)
+    mirrored[:, 15] = action_temp[:, 16] # left_wrist_roll = right_wrist_roll
+    mirrored[:, 16] = action_temp[:, 15] # right_wrist_roll = left_wrist_roll
+    mirrored[:, 15] *= -1 # left_wrist_roll (now right)
+    mirrored[:, 16] *= -1 # right_wrist_roll (now left)
+    
+    # Hip yaw: 17 ↔ 18 (sign flip)
+    mirrored[:, 17] = action_temp[:, 18] # left_hip_yaw = right_hip_yaw
+    mirrored[:, 18] = action_temp[:, 17] # right_hip_yaw = left_hip_yaw
+    mirrored[:, 17] *= -1 # left_hip_yaw (now right)
+    mirrored[:, 18] *= -1 # right_hip_yaw (now left)
+    
+    # Wrist pitch: 19 ↔ 20
+    mirrored[:, 19] = action_temp[:, 20] # left_wrist_pitch = right_wrist_pitch
+    mirrored[:, 20] = action_temp[:, 19] # right_wrist_pitch = left_wrist_pitch
+    
+    # Knee: 21 ↔ 22
+    mirrored[:, 21] = action_temp[:, 22] # left_knee = right_knee
+    mirrored[:, 22] = action_temp[:, 21] # right_knee = left_knee
+    
+    # Wrist yaw: 23 ↔ 24 (sign flip)
+    mirrored[:, 23] = action_temp[:, 24] # left_wrist_yaw = right_wrist_yaw
+    mirrored[:, 24] = action_temp[:, 23] # right_wrist_yaw = left_wrist_yaw
+    mirrored[:, 23] *= -1 # left_wrist_yaw (now right)
+    mirrored[:, 24] *= -1 # right_wrist_yaw (now left)
+    
+    # Ankle pitch: 25 ↔ 26
+    mirrored[:, 25] = action_temp[:, 26] # left_ankle_pitch = right_ankle_pitch
+    mirrored[:, 26] = action_temp[:, 25] # right_ankle_pitch = left_ankle_pitch
+    
+    # Ankle roll: 27 ↔ 28 (sign flip)
+    mirrored[:, 27] = action_temp[:, 28] # left_ankle_roll = right_ankle_roll
+    mirrored[:, 28] = action_temp[:, 27] # right_ankle_roll = left_ankle_roll
+    mirrored[:, 27] *= -1 # left_ankle_roll (now right)
+    mirrored[:, 28] *= -1 # right_ankle_roll (now left)
     
     return mirrored
 
@@ -294,26 +331,25 @@ if __name__ == "__main__":
     print(f"Original critic obs shape: {critic_obs.shape}")
     print(f"Mirrored critic obs shape: {mirrored_critic_obs.shape}")
     
-    print("\n=== G1 Humanoid Robot Joint Symmetry Mapping ===")
-    print("LEG JOINTS - CORRECTED:")
-    print("  left_hip_yaw (0) ↔ right_hip_yaw (6), sign flip")
-    print("  left_hip_roll (1) ↔ right_hip_roll (7), sign flip")
-    print("  left_hip_pitch (2) ↔ right_hip_pitch (8)")
-    print("  left_knee (3) ↔ right_knee (9)")
-    print("  left_ankle_pitch (4) ↔ right_ankle_pitch (10)")
-    print("  left_ankle_roll (5) ↔ right_ankle_roll (11), sign flip")
-    print("WAIST JOINTS:")
-    print("  waist_yaw (12) - sign flip")
-    print("  waist_roll (13) - sign flip")
-    print("  waist_pitch (14) - no change")
-    print("ARM JOINTS - CORRECTED:")
-    print("  left_shoulder_pitch (15) ↔ right_shoulder_pitch (22)")
-    print("  left_shoulder_roll (16) ↔ right_shoulder_roll (23), sign flip")
-    print("  left_shoulder_yaw (17) ↔ right_shoulder_yaw (24), sign flip")
-    print("  left_elbow (18) ↔ right_elbow (25)")
-    print("  left_wrist_roll (19) ↔ right_wrist_roll (26), sign flip")
-    print("  left_wrist_pitch (20) ↔ right_wrist_pitch (27)")
-    print("  left_wrist_yaw (21) ↔ right_wrist_yaw (28), sign flip")
+    print("\n=== G1 Humanoid Robot Joint Symmetry Mapping - FINAL VERIFIED ===")
+    print("WAIST JOINTS (central):")
+    print("  waist_pitch_joint (0) - no change")
+    print("  waist_roll_joint (3) - sign flip")
+    print("  waist_yaw_joint (6) - sign flip")
+    print("\nLEFT-RIGHT PAIRS:")
+    print("  left_shoulder_pitch (1) ↔ right_shoulder_pitch (2)")
+    print("  left_shoulder_roll (4) ↔ right_shoulder_roll (5), sign flip")
+    print("  left_shoulder_yaw (7) ↔ right_shoulder_yaw (8), sign flip")
+    print("  left_hip_pitch (9) ↔ right_hip_pitch (10)")
+    print("  left_elbow (11) ↔ right_elbow (12)")
+    print("  left_hip_roll (13) ↔ right_hip_roll (14), sign flip")
+    print("  left_wrist_roll (15) ↔ right_wrist_roll (16), sign flip")
+    print("  left_hip_yaw (17) ↔ right_hip_yaw (18), sign flip")
+    print("  left_wrist_pitch (19) ↔ right_wrist_pitch (20)")
+    print("  left_knee (21) ↔ right_knee (22)")
+    print("  left_wrist_yaw (23) ↔ right_wrist_yaw (24), sign flip")
+    print("  left_ankle_pitch (25) ↔ right_ankle_pitch (26)")
+    print("  left_ankle_roll (27) ↔ right_ankle_roll (28), sign flip")
     
     # Training configuration usage
     print("\n=== Training Configuration ===")
@@ -325,10 +361,12 @@ if __name__ == "__main__":
         "mirror_loss_coeff": 0.1,
     }
     
-    # VERIFIED Joint Order: Left joints come first, then right joints:
-    # - Legs: left_hip_yaw(0)...left_ankle_roll(5), right_hip_yaw(6)...right_ankle_roll(11)
-    # - Waist: waist_yaw(12), waist_roll(13), waist_pitch(14)
-    # - Arms: left_shoulder_pitch(15)...left_wrist_yaw(21), right_shoulder_pitch(22)...right_wrist_yaw(28)
+    # FINAL VERIFIED Joint Order from actual environment:
+    # Mixed arrangement with left-right pairs scattered throughout:
+    # 0: waist_pitch, 1-2: shoulder_pitch(L-R), 3: waist_roll, 4-5: shoulder_roll(L-R), 6: waist_yaw,
+    # 7-8: shoulder_yaw(L-R), 9-10: hip_pitch(L-R), 11-12: elbow(L-R), 13-14: hip_roll(L-R),
+    # 15-16: wrist_roll(L-R), 17-18: hip_yaw(L-R), 19-20: wrist_pitch(L-R), 21-22: knee(L-R),
+    # 23-24: wrist_yaw(L-R), 25-26: ankle_pitch(L-R), 27-28: ankle_roll(L-R)
     # 
     # Note: Adjust observation dimensions based on actual environment setup:
     # - Policy obs: base_ang_vel(3) + projected_gravity(3) + velocity_commands(3) + 
