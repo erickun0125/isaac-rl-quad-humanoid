@@ -5,4 +5,5 @@
 
 """Locomotion environments for legged robots."""
 
+from .humanoid_locomanip import *  # noqa
 from .tracking import *  # noqa

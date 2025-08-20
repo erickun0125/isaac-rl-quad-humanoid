@@ -68,7 +68,7 @@ def main():
     action_manager = env.action_manager
     if hasattr(action_manager._terms["joint_pos"], "get_group_policy"):  # pylint: disable=protected-access
         print("\nPolicy Configuration:")
-        from isaaclab_tasks.manager_based.loco_manipulation.tracking.config.g1.mdp.whole_body_actions import JointGroup
+        from isaaclab_tasks.manager_based.whole_body_control.humanoid_upperbody_integration.config.g1.mdp.whole_body_actions import JointGroup
         for group in [JointGroup.HAND, JointGroup.ARM, JointGroup.WAIST, JointGroup.LEG]:
             policy = action_manager._terms["joint_pos"].get_group_policy(group)  # pylint: disable=protected-access
             joint_names = action_manager._terms["joint_pos"].get_group_joint_names(group)  # pylint: disable=protected-access

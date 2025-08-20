@@ -2,7 +2,3 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-
-"""Configuration for tracking-based locomanipulation environments."""
-
-from .config import digit  # noqa: F401

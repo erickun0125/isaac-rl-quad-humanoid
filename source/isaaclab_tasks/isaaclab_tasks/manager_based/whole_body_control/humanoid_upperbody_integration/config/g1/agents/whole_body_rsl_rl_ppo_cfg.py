@@ -6,6 +6,9 @@
 from isaaclab.utils import configclass
 
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl.symmetry_cfg import RslRlSymmetryCfg
+from .symmetry import g1_wholebody_symmetry
+
 
 @configclass
 class G1WholeBodyPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -15,7 +18,6 @@ class G1WholeBodyPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 2000
     save_interval = 50
     experiment_name = "g1_whole_body_control"
-    wandb_project = "isaaclab_g1_whole_body"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -43,11 +45,11 @@ class G1WholeBodyPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 class G1LowerBodyOnlyPPORunnerCfg(G1WholeBodyPPORunnerCfg):
     """Configuration optimized for lower body only control."""
     
-    experiment_name = "g1_lower_body_only"
+    experiment_name = "g1_whole_body_half_rl"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
-        actor_hidden_dims=[256, 128, 64],  # Smaller network for fewer DOF
-        critic_hidden_dims=[256, 128, 64],
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
     
@@ -61,11 +63,15 @@ class G1LowerBodyOnlyPPORunnerCfg(G1WholeBodyPPORunnerCfg):
 class G1FullRLPPORunnerCfg(G1WholeBodyPPORunnerCfg):
     """Configuration optimized for full RL control (all joints)."""
     
-    experiment_name = "g1_full_rl"
-    max_iterations = 3000  # More iterations for complex full-body control
+    experiment_name = "g1_whole_body_full_rl"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
-        actor_hidden_dims=[1024, 512, 256],  # Larger network for many DOF
-        critic_hidden_dims=[1024, 512, 256],
+        actor_hidden_dims=[512, 256, 128],
+        critic_hidden_dims=[512, 256, 128],
         activation="elu",
     )
+
+    def __post_init__(self):
+        # Add class_name to policy configuration
+        super().__post_init__() if hasattr(super(), '__post_init__') else None
+        self.policy.class_name = "ActorCritic"

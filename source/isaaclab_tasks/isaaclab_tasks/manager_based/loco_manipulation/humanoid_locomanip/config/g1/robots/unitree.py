@@ -9,7 +9,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 G129_CFG_WITH_DEX3_BASE_FLOATING = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
+        usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/humanoid_locomanip/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -177,7 +177,7 @@ G129_CFG_WITH_DEX3_BASE_FLOATING = ArticulationCfg(
 
 G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
+        usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/humanoid_locomanip/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,

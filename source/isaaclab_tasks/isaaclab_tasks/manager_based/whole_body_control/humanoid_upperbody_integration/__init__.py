@@ -5,4 +5,4 @@
 
 """Configuration for tracking-based locomanipulation environments."""
 
-from .config import digit  # noqa: F401
+from .config import g1  # noqa: F401

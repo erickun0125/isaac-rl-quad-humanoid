@@ -3,6 +3,5 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Configuration for tracking-based locomanipulation environments."""
+"""Custom MDP functions for G1 control environments."""
 
-from .config import digit  # noqa: F401

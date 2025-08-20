@@ -38,7 +38,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from . import mdp as g1_mdp
 
-from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP
+from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_UPPER_BODY_CONTROL
 
 # G129 joint names organized by groups
 HAND_JOINT_NAMES = [
@@ -155,7 +155,7 @@ class G1WholeBodySceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # Robots
-    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP)
+    robot: ArticulationCfg = copy.deepcopy(G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_UPPER_BODY_CONTROL)
     robot.prim_path = "{ENV_REGEX_NS}/Robot"
     # Sensors
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
@@ -571,8 +571,8 @@ class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
         # IK configuration
-        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots/g1_29dof_with_hand.urdf"
-        self.actions.joint_pos.mesh_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/tracking/config/g1/robots"
+        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/whole_body_control/humanoid_upperbody_integration/config/g1/robots/g1_29dof_with_hand.urdf"
+        self.actions.joint_pos.mesh_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/whole_body_control/humanoid_upperbody_integration/config/g1/robots"
         # Trajectory generator configuration for IK
         self.actions.joint_pos.trajectory_generator_type = "circular"
         self.actions.joint_pos.trajectory_generator_params = {

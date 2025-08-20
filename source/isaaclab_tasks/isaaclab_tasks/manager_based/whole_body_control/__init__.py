@@ -3,6 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Configuration for tracking-based locomanipulation environments."""
+"""Locomotion environments for legged robots."""
 
-from .config import digit  # noqa: F401
+from .humanoid_upperbody_integration import *  # noqa
