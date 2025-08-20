@@ -351,6 +351,7 @@ class G1LocoManipActionsCfg:
         joint_names= CONTROLLED_JOINTS,
         scale=0.5,
         use_default_offset=True,
+        preserve_order=True,
     )
 
 
@@ -386,13 +387,13 @@ class G1LocoManipObservationsCfg:
         '''
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS, preserve_order=True)},
             noise=Unoise(n_min=-0.01, n_max=0.01),
             history_length=3
         )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS, preserve_order=True)},
             noise=Unoise(n_min=-1.5, n_max=1.5),
             history_length=2
         )
@@ -433,12 +434,12 @@ class G1LocoManipObservationsCfg:
         # Joint states with history
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS, preserve_order=True)},
             history_length=3
         )
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
-            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS, preserve_order=True)},
             history_length=2
         )
         
