@@ -508,7 +508,14 @@ class G1LocoManipCommandsCfg:
 @configclass
 class G1LocoManipEventsCfg:
     """Disturbance and domain-randomization events."""
-
+    reset_scene_to_default = EventTerm(
+        func=mdp.reset_scene_to_default,
+        mode="reset",
+        params={
+            "reset_joint_targets": True,
+        },
+    )
+    
     reset_base = EventTerm(
         func=mdp.reset_root_state_uniform,
         mode="reset",
@@ -524,7 +531,7 @@ class G1LocoManipEventsCfg:
             },
         },
     )
-
+    
     reset_robot_joints = EventTerm(
         func=mdp.reset_joints_by_scale,
         mode="reset",
@@ -533,6 +540,7 @@ class G1LocoManipEventsCfg:
             "velocity_range": (0.0, 0.0),
         },
     )
+    
     '''
     # Add an external force to simulate a payload being carried.
     left_hand_force = EventTerm(
