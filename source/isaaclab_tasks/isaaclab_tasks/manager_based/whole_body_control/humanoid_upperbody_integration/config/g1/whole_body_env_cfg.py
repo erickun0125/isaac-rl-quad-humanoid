@@ -312,9 +312,6 @@ class G1WholeBodyActionsCfg:
         leg_policy=g1_mdp.PolicyType.RL,     # IK, IL, or RL
         scale=0.5,
         use_default_offset=True,
-        # Pink IK configuration (optional - set paths if available)
-        urdf_path=None,  # Set to G1 URDF path to enable Pink IK
-        mesh_path=None,  # Set to G1 mesh path if needed
         # Trajectory generator configuration (for IK policy)
         trajectory_generator_type=None,  # Options: 'circular', 'linear', 'custom'
         trajectory_generator_params=None,  # Custom parameters for trajectory generator
@@ -587,7 +584,7 @@ class G1WholeBodyEnvCfg_PLAY(G1WholeBodyEnvCfg):
 
 # Specialized configurations for different control scenarios
 
-@configclass  
+@configclass
 class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
     """Configuration where upper body uses IK and lower body uses RL."""
     
@@ -599,9 +596,7 @@ class G1WholeBodyEnvCfg_UpperBodyIK(G1WholeBodyEnvCfg):
         # Lower body uses RL
         self.actions.joint_pos.waist_policy = g1_mdp.PolicyType.RL
         self.actions.joint_pos.leg_policy = g1_mdp.PolicyType.RL
-        # IK configuration
-        self.actions.joint_pos.urdf_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/whole_body_control/humanoid_upperbody_integration/config/g1/robots/g1_29dof_with_hand.urdf"
-        self.actions.joint_pos.mesh_path = "/home/eric/sequor_robotics/sequor_sim/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/whole_body_control/humanoid_upperbody_integration/config/g1/robots"
+
         # Trajectory generator configuration for IK
         self.actions.joint_pos.trajectory_generator_type = "circular"
         self.actions.joint_pos.trajectory_generator_params = {

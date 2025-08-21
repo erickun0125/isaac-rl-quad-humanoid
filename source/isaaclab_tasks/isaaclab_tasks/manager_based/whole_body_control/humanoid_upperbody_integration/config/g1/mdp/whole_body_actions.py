@@ -22,12 +22,12 @@ from isaaclab.assets import Articulation
 from isaaclab.managers.action_manager import ActionTerm, ActionTermCfg
 from isaaclab.utils import configclass
 
-import numpy as np
 from ..upper_body_controller import (
-	CircularTrajectoryGenerator,
-	UpperBodyIKController,
-	UpperBodyILController,
-	DummyILModel,
+    CircularTrajectoryGenerator,
+    UpperBodyIKController,
+    IKDataCollector,
+    UpperBodyILController,
+    DummyILModel,
 )
 
 if TYPE_CHECKING:
@@ -47,6 +47,7 @@ class JointGroup(Enum):
     ARM = "arm"
     WAIST = "waist"
     LEG = "leg"
+
 
 
 class WholeBodyJointPositionAction(ActionTerm):
@@ -160,6 +161,13 @@ class WholeBodyJointPositionAction(ActionTerm):
             self._scale = torch.tensor([], device=self.device)
             self._offset = torch.tensor([], device=self.device)
 
+        # Initialize IK data collector for modular data access
+        self._ik_data_collector = IKDataCollector(
+            asset=self._asset,
+            joint_group_indices=self._joint_group_indices,
+            device=self.device
+        )
+        
         # Initialize controllers for IL and IK policies
         self._ik_controller = None
         self._il_controller = None
@@ -169,22 +177,21 @@ class WholeBodyJointPositionAction(ActionTerm):
             # Create trajectory generator based on configuration
             trajectory_generator = self._create_trajectory_generator(cfg)
             
-            # Get URDF path for Pink IK (if available)
-            urdf_path = getattr(cfg, 'urdf_path', None)
-            mesh_path = getattr(cfg, 'mesh_path', None)
-            
+            # Create IK controller (Differential IK only)
+            print("Initializing Differential IK controller for upper body")
             self._ik_controller = UpperBodyIKController(
                 robot=self._asset,
                 trajectory_generator=trajectory_generator,
                 device=self.device,
-                urdf_path=urdf_path,
-                mesh_path=mesh_path,
+                num_envs=self.num_envs,
             )
             
         # Check if we need IL controller
         if PolicyType.IL in [self._group_policies[JointGroup.HAND], self._group_policies[JointGroup.ARM]]:
             # Create IL models and controller based on configuration
             self._il_controller = self._create_il_controller(cfg)
+        else:
+            self._il_controller = None
 
         # Initialize action buffers
         self._rl_joint_pos_target = torch.zeros(self.num_envs, self._rl_joint_count, device=self.device)
@@ -196,8 +203,8 @@ class WholeBodyJointPositionAction(ActionTerm):
         # Track simulation time for controllers
         self._sim_time = 0.0
 
-        print(f"[INFO] WholeBodyJointPositionAction initialized with {self._rl_joint_count} RL-controlled joints")
-        print(f"[INFO] Action dimension: {self._rl_joint_count}")
+        # Print initialization summary
+        self._print_initialization_summary()
     
     def _create_trajectory_generator(self, cfg: WholeBodyJointPositionActionCfg) -> "TrajectoryGenerator":
         """Create trajectory generator based on configuration.
@@ -218,7 +225,32 @@ class WholeBodyJointPositionAction(ActionTerm):
             print(f"[WARNING] Trajectory generator type '{trajectory_type}' not implemented, using circular")
             return CircularTrajectoryGenerator(device=self.device, **trajectory_params)
     
-    def _create_il_controller(self, cfg: WholeBodyJointPositionActionCfg) -> "UpperBodyILController":
+    def _print_initialization_summary(self):
+        """Print initialization summary for debugging."""
+        print("\n" + "="*60)
+        print("WholeBodyJointPositionAction Initialization Summary")
+        print("="*60)
+        
+        # Joint group configuration
+        for group, policy in self._group_policies.items():
+            joint_count = len(self._joint_group_indices[group])
+            print(f"  {group.value.upper()}: {policy.value.upper()} policy ({joint_count} joints)")
+        
+        # Controller information
+        print("\nController Status:")
+        print(f"  IK Controller: {'✓' if self._ik_controller else '✗'}")
+        print(f"  IL Controller: {'✓' if self._il_controller else '✗'}")
+        print(f"  IK Data Collector: {'✓' if self._ik_data_collector else '✗'}")
+        
+        # Action space information
+        print("\nAction Space:")
+        print(f"  RL-controlled joints: {self._rl_joint_count}")
+        print(f"  Total controlled joints: {len(self._all_controlled_joint_ids)}")
+        print(f"  Environments: {self.num_envs}")
+        
+        print("="*60 + "\n")
+    
+    def _create_il_controller(self, cfg: WholeBodyJointPositionActionCfg) -> UpperBodyILController:
         """Create IL controller based on configuration.
         
         Args:
@@ -319,36 +351,22 @@ class WholeBodyJointPositionAction(ActionTerm):
             elif policy_type == PolicyType.IK:
                 # Get IK targets for this group
                 if group == JointGroup.ARM and self._ik_controller is not None:
-                    # Get current arm joint positions for Pink IK
-                    current_arm_joints = self._get_current_arm_joint_positions()
-                    ik_targets = self._ik_controller.compute_arm_targets(self._sim_time, current_arm_joints)
-                    group_targets = ik_targets.unsqueeze(0).expand(self.num_envs, -1)
+                    group_targets = self._compute_ik_arm_targets(group_size)
                 elif group == JointGroup.HAND and self._ik_controller is not None:
-                    ik_targets = self._ik_controller.compute_hand_targets(self._sim_time)
-                    group_targets = ik_targets.unsqueeze(0).expand(self.num_envs, -1)
+                    group_targets = self._compute_ik_hand_targets(group_size)
                 else:
                     # Default pose for non-supported IK groups
-                    group_targets = torch.zeros(self.num_envs, group_size, device=self.device)
+                    group_targets = self._get_default_pose(group_size)
                     
             elif policy_type == PolicyType.IL:
                 # Get IL targets for this group
-                if self._il_controller is not None:
-                    # Get current observations for IL model
-                    # This would typically include current state, visual observations, etc.
-                    dummy_obs = {"dummy": torch.zeros(self.num_envs, 1, device=self.device)}
-                    
-                    if group == JointGroup.ARM:
-                        il_targets = self._il_controller.compute_arm_targets(dummy_obs)
-                        group_targets = il_targets
-                    elif group == JointGroup.HAND:
-                        il_targets = self._il_controller.compute_hand_targets(dummy_obs)
-                        group_targets = il_targets
-                    else:
-                        # Default pose for non-supported IL groups
-                        group_targets = torch.zeros(self.num_envs, group_size, device=self.device)
+                if group == JointGroup.ARM and self._il_controller is not None:
+                    group_targets = self._compute_il_arm_targets(group_size)
+                elif group == JointGroup.HAND and self._il_controller is not None:
+                    group_targets = self._compute_il_hand_targets(group_size)
                 else:
-                    # Default pose if no IL controller
-                    group_targets = torch.zeros(self.num_envs, group_size, device=self.device)
+                    # Default pose for non-supported IL groups or no IL controller
+                    group_targets = self._get_default_pose(group_size)
                     
             else:
                 # Default case
@@ -362,6 +380,107 @@ class WholeBodyJointPositionAction(ActionTerm):
         else:
             self._all_joint_pos_target = torch.zeros(self.num_envs, 0, device=self.device)
 
+    def _compute_ik_arm_targets(self, group_size: int) -> torch.Tensor:
+        """Compute IK targets for arm joints.
+        
+        Args:
+            group_size: Number of joints in the group
+            
+        Returns:
+            Target joint positions for arm joints (num_envs, group_size)
+        """
+        try:
+            # Collect all IK data using the modular data collector
+            ik_data = self._ik_data_collector.collect_ik_data()
+            
+            # Compute IK targets using collected data
+            ik_targets = self._ik_controller.compute_arm_targets(
+                current_time=self._sim_time,
+                current_joint_pos=ik_data['current_arm_joints'],
+                left_ee_pos=ik_data['left_ee_pos'],
+                left_ee_quat=ik_data['left_ee_quat'],
+                right_ee_pos=ik_data['right_ee_pos'],
+                right_ee_quat=ik_data['right_ee_quat'],
+                left_jacobian=ik_data['left_jacobian'],
+                right_jacobian=ik_data['right_jacobian']
+            )
+            
+            return ik_targets
+            
+        except (RuntimeError, ValueError, AttributeError) as e:
+            print(f"[WARNING] ARM IK computation failed: {e}. Using default pose.")
+            return self._get_default_pose(group_size)
+    
+    def _compute_ik_hand_targets(self, group_size: int) -> torch.Tensor:
+        """Compute IK targets for hand joints.
+        
+        Args:
+            group_size: Number of joints in the group
+            
+        Returns:
+            Target joint positions for hand joints (num_envs, group_size)
+        """
+        try:
+            hand_targets = self._ik_controller.compute_hand_targets(self._sim_time)
+            return hand_targets.unsqueeze(0).expand(self.num_envs, -1)
+        except (RuntimeError, ValueError, AttributeError) as e:
+            print(f"[WARNING] HAND IK computation failed: {e}. Using default pose.")
+            return self._get_default_pose(group_size)
+    
+    def _compute_il_arm_targets(self, group_size: int) -> torch.Tensor:
+        """Compute IL targets for arm joints.
+        
+        Args:
+            group_size: Number of joints in the group
+            
+        Returns:
+            Target joint positions for arm joints (num_envs, group_size)
+        """
+        try:
+            # Get current observations for IL model
+            # This would typically include current state, visual observations, etc.
+            dummy_obs = {"dummy": torch.zeros(self.num_envs, 1, device=self.device)}
+            
+            il_targets = self._il_controller.compute_arm_targets(dummy_obs)
+            return il_targets
+            
+        except (RuntimeError, ValueError, AttributeError) as e:
+            print(f"[WARNING] ARM IL computation failed: {e}. Using default pose.")
+            return self._get_default_pose(group_size)
+    
+    def _compute_il_hand_targets(self, group_size: int) -> torch.Tensor:
+        """Compute IL targets for hand joints.
+        
+        Args:
+            group_size: Number of joints in the group
+            
+        Returns:
+            Target joint positions for hand joints (num_envs, group_size)
+        """
+        try:
+            # Get current observations for IL model
+            dummy_obs = {"dummy": torch.zeros(self.num_envs, 1, device=self.device)}
+            
+            il_targets = self._il_controller.compute_hand_targets(dummy_obs)
+            return il_targets
+            
+        except (RuntimeError, ValueError, AttributeError) as e:
+            print(f"[WARNING] HAND IL computation failed: {e}. Using default pose.")
+            return self._get_default_pose(group_size)
+    
+    def _get_default_pose(self, group_size: int) -> torch.Tensor:
+        """Get default pose for a joint group.
+        
+        Args:
+            group_size: Number of joints in the group
+            
+        Returns:
+            Default joint positions (num_envs, group_size)
+        """
+        return torch.zeros(self.num_envs, group_size, device=self.device)
+    
+
+    
     def _extract_rl_targets_for_group(self, group: JointGroup) -> torch.Tensor:
         """Extract RL targets for a specific group from processed RL actions.
         
@@ -393,22 +512,9 @@ class WholeBodyJointPositionAction(ActionTerm):
                 group_size = group_indices.numel()
             return torch.zeros(self.num_envs, group_size, device=self.device)
     
-    def _get_current_arm_joint_positions(self) -> np.ndarray:
-        """Get current arm joint positions for Pink IK solver.
-        
-        Returns:
-            Current arm joint positions as numpy array (for first environment)
-        """
-        # Get arm joint indices
-        arm_joint_indices = self._joint_group_indices[JointGroup.ARM]
-        
-        if len(arm_joint_indices) > 0:
-            # Get current joint positions for arm joints (use first environment)
-            current_arm_pos = self._asset.data.joint_pos[0, arm_joint_indices]
-            return current_arm_pos.cpu().numpy()
-        else:
-            # Return empty array if no arm joints
-            return np.array([])
+
+    
+
 
     def apply_actions(self) -> None:
         """Apply the processed actions to the articulation."""
@@ -511,12 +617,7 @@ class WholeBodyJointPositionActionCfg(ActionTermCfg):
     use_default_offset: bool = False
     """Whether to use default joint positions as offset for RL joints. Defaults to False."""
 
-    # Pink IK configuration (optional)
-    urdf_path: str | None = None
-    """Path to URDF file for Pink IK controller. If provided, Pink IK will be used for arm control."""
-    
-    mesh_path: str | None = None
-    """Path to mesh files for Pink IK controller."""
+    # Pink IK configuration removed - using Differential IK only
     
     # Trajectory generator configuration (for IK policy)
     trajectory_generator_type: str = "circular"
