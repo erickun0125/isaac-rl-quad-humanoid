@@ -7,10 +7,9 @@ from isaaclab.actuators import ActuatorNetMLPCfg, DCMotorCfg, ImplicitActuatorCf
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-
 G129_CFG_WITH_DEX3_BASE_FIX = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"sequor_g1/envs/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3_base_fixed.usd",
+        usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/whole_body_control/humanoid_upperbody_integration/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3_base_fixed.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -22,7 +21,7 @@ G129_CFG_WITH_DEX3_BASE_FIX = ArticulationCfg(
             max_depenetration_velocity=1.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=True,
+            enabled_self_collisions=True, 
             solver_position_iteration_count=8,
             solver_velocity_iteration_count=4,
 
@@ -113,14 +112,14 @@ G129_CFG_WITH_DEX3_BASE_FIX = ArticulationCfg(
             effort_limit=1000.0,  # set a large torque limit
             velocity_limit=0.0,   # set the velocity limit to 0
             stiffness={
-                "waist_yaw_joint": 400.0,
-                "waist_roll_joint": 400.0,
-                "waist_pitch_joint": 400.0
+                "waist_yaw_joint": 10000.0,
+                "waist_roll_joint": 10000.0,
+                "waist_pitch_joint": 10000.0
             },
             damping={
-                "waist_yaw_joint": 4.0,
-                "waist_roll_joint": 4.0,
-                "waist_pitch_joint": 4.0
+                "waist_yaw_joint": 10000.0,
+                "waist_roll_joint": 10000.0,
+                "waist_pitch_joint": 10000.0
             },
             armature=None,
         ),
@@ -141,13 +140,13 @@ G129_CFG_WITH_DEX3_BASE_FIX = ArticulationCfg(
             velocity_limit=None,
              stiffness={  # increase the stiffness (kp)
                  ".*_shoulder_.*_joint": 300.0,
-                 ".*_elbow_joint": 400.0,
-                 ".*_wrist_.*_joint": 400.0,
+                 ".*_elbow_joint": 300.0,
+                 ".*_wrist_.*_joint": 300.0,
             },
              damping={    # increase the damping (kd)
-                 ".*_shoulder_.*_joint": 3.0,
-                 ".*_elbow_joint": 2.5,
-                 ".*_wrist_.*_joint": 2.5,
+                 ".*_shoulder_.*_joint": 5.0,
+                 ".*_elbow_joint": 5.0,
+                 ".*_wrist_.*_joint": 5.0,
              },
             armature=None,
         ),
@@ -159,19 +158,15 @@ G129_CFG_WITH_DEX3_BASE_FIX = ArticulationCfg(
             ],
             effort_limit=100,
             velocity_limit=None,
-            # stiffness=None,
-            # damping=None,
-            stiffness={  # increase the stiffness (kp)
-                ".*_hand_index_.*_joint": 400.0,
-                ".*_hand_middle_.*_joint": 400.0,
-                ".*_hand_thumb_.*_joint": 400.0,
+            stiffness={
+                ".*": 300.0,
             },
-            damping={    # increase the damping (kd)
-               ".*_hand_index_.*_joint": 4.0,
-               ".*_hand_middle_.*_joint": 4.0,
-               ".*_hand_thumb_.*_joint": 4.0,
+            damping={
+                ".*": 5.0,
             },
-            armature=None,
+            armature={
+                ".*": 0.001
+            },
         ),
     },
 )
