@@ -264,6 +264,17 @@ class G1LocoManipRewardsCfg:
         },
     )    
 
+    joint_deviation_shoulder_roll = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[".*_shoulder_roll_joint"],
+            )
+        },
+    )        
+
     joint_deviation_torso = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.1,
@@ -289,7 +300,7 @@ class G1LocoManipRewardsCfg:
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=0.5,
+        weight=1.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "command_name": "base_velocity",
@@ -480,7 +491,7 @@ class G1LocoManipCommandsCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.5, 1.0),
+            lin_vel_x=(-0.5, 1.5),
             lin_vel_y=(-0.5, 0.5),
             ang_vel_z=(-1.0, 1.0),
             heading=(-math.pi, math.pi),
@@ -578,7 +589,7 @@ class G1LocoManipEventsCfg:
             "torque_range": (-1.0, 1.0),
         },
     )
-    '''
+    
 
     torso_wrench = EventTerm(
         func=mdp.apply_external_force_torque,
@@ -607,6 +618,7 @@ class G1LocoManipEventsCfg:
             },
         },
     )
+    '''
     # randomize the physics material of the robot.
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -661,7 +673,7 @@ class G1LocoManipTerminationsCfg:
 
     base_height = TermTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.54},
+        params={"minimum_height": 0.52},
     )    
     
     base_orientation = TermTerm(
@@ -692,7 +704,7 @@ class G1LocoManipCurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
-    
+    '''
     # Velocity command curriculum - gradually increase velocity ranges
     velocity_curriculum = CurrTerm(
         func=locomanip_mdp.velocity_range_curriculum,
@@ -736,7 +748,7 @@ class G1LocoManipCurriculumCfg:
             "force_increase_step": 0.2,
         }
     )
-
+    '''
 
 @configclass
 class G1LocoManipEnvCfg(ManagerBasedRLEnvCfg):
