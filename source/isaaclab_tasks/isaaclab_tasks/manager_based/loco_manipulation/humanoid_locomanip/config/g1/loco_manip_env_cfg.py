@@ -170,7 +170,7 @@ class G1LocoManipRewardsCfg:
 
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
-        weight=1.5,
+        weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
     )
 
@@ -636,12 +636,12 @@ class G1LocoManipTerminationsCfg:
 
     base_height = TermTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.6},
+        params={"minimum_height": 0.5},
     )    
     
     base_orientation = TermTerm(
         func=mdp.bad_orientation,
-        params={"limit_angle": 0.6},
+        params={"limit_angle": 0.78},
     )
 
     '''
