@@ -5,3 +5,5 @@
 
 """Custom MDP functions for G1 control environments."""
 
+from . import locomanip_mdp
+

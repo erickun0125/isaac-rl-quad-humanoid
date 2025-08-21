@@ -26,6 +26,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 import isaaclab_tasks.manager_based.manipulation.reach.mdp as manipulation_mdp
+from .mdp import locomanip_mdp
 
 from .robots.unitree import G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP
 
@@ -305,6 +306,17 @@ class G1LocoManipRewardsCfg:
         },
     )
 
+    foot_clearance = RewTerm(
+        func=locomanip_mdp.foot_clearance_reward,
+        weight=0.2,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
+            "target_height": 0.1,
+            "std": 0.1,
+            "tanh_mult": 2.0,
+        },
+    )    
+
     # Joint regularization rewards
     joint_torques_l2 = RewTerm(
         func=mdp.joint_torques_l2,
@@ -322,6 +334,7 @@ class G1LocoManipRewardsCfg:
         func=mdp.action_rate_l2,
         weight=-0.005,
     )
+
 
     '''
     #limit penalties
@@ -541,19 +554,9 @@ class G1LocoManipEventsCfg:
         },
     )
     
-    '''
     # Add an external force to simulate a payload being carried.
-    left_hand_force = EventTerm(
-        func=mdp.apply_external_force_torque,
-        mode="interval",
-        interval_range_s=(10.0, 15.0),
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
-            "force_range": (-1.0, 1.0),
-            "torque_range": (-1.0, 1.0),
-        },
-    )
 
+    '''
     right_hand_force = EventTerm(
         func=mdp.apply_external_force_torque,
         mode="interval",
@@ -564,12 +567,35 @@ class G1LocoManipEventsCfg:
             "torque_range": (-1.0, 1.0),
         },
     )
+
+    left_hand_force = EventTerm(
+        func=mdp.apply_external_force_torque,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
+            "force_range": (-1.0, 1.0),
+            "torque_range": (-1.0, 1.0),
+        },
+    )
+    '''
+
+    torso_wrench = EventTerm(
+        func=mdp.apply_external_force_torque,
+        mode="interval",
+        interval_range_s=(5.0, 15.0),
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "force_range": (-1.0, 1.0),
+            "torque_range": (-1.0, 1.0),
+        },
+    )
     
-    # push the base to simulate a payload being carried.
+    # push the base to simulate a pushing force
     push_base = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
-        interval_range_s=(3.0, 17.0),
+        interval_range_s=(5.0, 15.0),
         params={
             "velocity_range": {
                 "x": (-0.1, 0.1),
@@ -581,7 +607,6 @@ class G1LocoManipEventsCfg:
             },
         },
     )
-    '''
     # randomize the physics material of the robot.
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -636,7 +661,7 @@ class G1LocoManipTerminationsCfg:
 
     base_height = TermTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.5},
+        params={"minimum_height": 0.54},
     )    
     
     base_orientation = TermTerm(
@@ -667,6 +692,50 @@ class G1LocoManipCurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    
+    # Velocity command curriculum - gradually increase velocity ranges
+    velocity_curriculum = CurrTerm(
+        func=locomanip_mdp.velocity_range_curriculum,
+        params={
+            "lin_reward_term": "track_lin_vel_xy_exp",
+            "ang_reward_term": "track_ang_vel_z_exp",
+            "lin_vel_x_limit": (-1.0, 1.5),
+            "lin_vel_y_limit": (-1.0, 1.0),
+            "ang_vel_z_limit": (-1.0, 1.0),
+            "reward_threshold": 0.85,
+            "delta_step": 0.1,
+        }
+    )
+    
+    # Joint deviation weight curriculum - gradually decrease penalty weights
+    joint_deviation_curriculum = CurrTerm(
+        func=locomanip_mdp.reward_weight_curriculum,
+        params={
+            "reward_term_names": ["joint_deviation_arms"],
+            "tracking_reward_name": "track_ang_vel_z_exp",
+            "min_weight": -0.01,
+            "reward_threshold": 0.8,
+            "weight_decay_step": 0.01,
+        }
+    )
+    
+    # Disturbance curriculum - gradually increase both push force and external force intensity based on termination rate and reward performance
+    disturbance_curriculum = CurrTerm(
+        func=locomanip_mdp.disturbance_range_curriculum,
+        params={
+            "termination_term_names": ["base_height", "base_orientation"],
+            "reward_term_name": "track_lin_vel_xy_exp",  # Monitor velocity tracking performance
+            "push_event_names": ["push_base"],
+            "external_force_event_names": ["torso_wrench"],
+            "max_push_velocity": 0.5,
+            "max_force_magnitude": 5.0,
+            "max_torque_magnitude": 2.0,
+            "termination_threshold": 0.1,  # Increase disturbance if termination rate < 10%
+            "reward_threshold": 0.8,  # Increase disturbance if reward performance > 80% of weight
+            "push_increase_step": 0.05,
+            "force_increase_step": 0.2,
+        }
+    )
 
 
 @configclass
@@ -709,10 +778,12 @@ class G1LocoManipEnvCfg_PLAY(G1LocoManipEnvCfg):
         self.scene.env_spacing = 2.5
         # Disable randomization for play.
         self.observations.policy.enable_corruption = False
-        # Remove random pushing if it exists
+        # Remove disturbance events for play mode
         if hasattr(self.events, "left_hand_force"):
             self.events.left_hand_force = None
         if hasattr(self.events, "right_hand_force"):
             self.events.right_hand_force = None
+        if hasattr(self.events, "torso_wrench"):
+            self.events.torso_wrench = None
         if hasattr(self.events, "push_base"):
             self.events.push_base = None
