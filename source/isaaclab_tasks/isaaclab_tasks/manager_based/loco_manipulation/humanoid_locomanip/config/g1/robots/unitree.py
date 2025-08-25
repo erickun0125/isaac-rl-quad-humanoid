@@ -6,7 +6,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ActuatorNetMLPCfg, DCMotorCfg, ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
-
+'''
 G129_CFG_WITH_DEX3_BASE_FLOATING = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/humanoid_locomanip/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
@@ -174,7 +174,7 @@ G129_CFG_WITH_DEX3_BASE_FLOATING = ArticulationCfg(
         ),
     },
 )
-
+'''
 G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path="source/isaaclab_tasks/isaaclab_tasks/manager_based/loco_manipulation/humanoid_locomanip/config/g1/usd/robots/g1-29dof-dex3-base-fix-usd/g1_29dof_with_dex3.usd",
@@ -202,14 +202,14 @@ G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP = ArticulationCfg(
             # legs joints
             "left_hip_yaw_joint": 0.0,
             "left_hip_roll_joint": 0.0,
-            "left_hip_pitch_joint": -0.20,
+            "left_hip_pitch_joint": -0.25,
             "left_knee_joint": 0.42,
             "left_ankle_pitch_joint": -0.23,
             "left_ankle_roll_joint": 0.0,
             
             "right_hip_yaw_joint": 0.0,
             "right_hip_roll_joint": 0.0,
-            "right_hip_pitch_joint": -0.20,
+            "right_hip_pitch_joint": -0.25,
             "right_knee_joint": 0.42,
             "right_ankle_pitch_joint": -0.23,
             "right_ankle_roll_joint": 0.0,
@@ -217,7 +217,7 @@ G129_CFG_WITH_DEX3_BASE_FLOATING_FOR_LOCOMANIP = ArticulationCfg(
             # waist joints
             "waist_yaw_joint": 0.0,
             "waist_roll_joint": 0.0,
-            "waist_pitch_joint": 0.0,
+            "waist_pitch_joint": 0.05,
             
             # arms joints
             "left_shoulder_pitch_joint": 0.35,
