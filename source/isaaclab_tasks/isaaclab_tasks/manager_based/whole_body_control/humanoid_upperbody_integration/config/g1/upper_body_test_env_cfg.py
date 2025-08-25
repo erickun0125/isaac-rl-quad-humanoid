@@ -191,18 +191,39 @@ class G1UpperBodyTestActionsCfg:
         scale=0.0,
         use_default_offset=True,
         # Trajectory generator configuration (for IK policy)
-        trajectory_generator_type="circular",  # Circular trajectory for upper body
+        trajectory_generator_type="fixed_point",  # Fixed point trajectory for upper body
         trajectory_generator_params={
             "center": (0.5, 0.0, 0.5),
-            "radius": 0.3,
-            "frequency": 0.01
+            "y_offset": 0.15,
+            "left_point": (0.1, 0.15, 0.2),
+            "right_point": (0.1, -0.15, 0.2),
         },
         # Upper body IL policy configuration
         upper_body_policy_type=None,  # Options: 'separate', 'unified'
         upper_body_policy_model_path=None,  # Path to IL model(s)
     )
 
+    '''
+    trajectory_generator_type="circular",  # Circular trajectory for upper body
+    trajectory_generator_params={
+        "center": (0.5, 0.0, 0.5),
+        "radius": 0.3,
+        "frequency": 0.0001
+    },
+    '''
+    
+    #
 
+    '''
+    trajectory_generator_type="fixed_point",  # Fixed point trajectory for upper body
+    trajectory_generator_params={
+        "center": (0.5, 0.0, 0.5),
+        "y_offset": 0.15,
+        "left_point": (0.2, 0.15, 0.2),
+        "right_point": (0.2, -0.15, 0.2),
+    },
+    '''
+    
 @configclass
 class G1UpperBodyTestObservationsCfg:
     """Observation terms grouped for policy and critic networks."""

@@ -24,6 +24,7 @@ from isaaclab.utils import configclass
 
 from ..upper_body_controller import (
     CircularTrajectoryGenerator,
+    FixedPointTrajectoryGenerator,
     UpperBodyIKController,
     IKDataCollector,
     UpperBodyILController,
@@ -165,6 +166,7 @@ class WholeBodyJointPositionAction(ActionTerm):
         self._ik_data_collector = IKDataCollector(
             asset=self._asset,
             joint_group_indices=self._joint_group_indices,
+            joint_group_names=self._joint_group_names,
             device=self.device
         )
         
@@ -220,6 +222,8 @@ class WholeBodyJointPositionAction(ActionTerm):
         
         if trajectory_type == "circular":
             return CircularTrajectoryGenerator(device=self.device, **trajectory_params)
+        elif trajectory_type == "fixed_point":
+            return FixedPointTrajectoryGenerator(device=self.device, **trajectory_params)
         else:
             # Default to circular for now
             print(f"[WARNING] Trajectory generator type '{trajectory_type}' not implemented, using circular")
@@ -396,7 +400,8 @@ class WholeBodyJointPositionAction(ActionTerm):
             # Compute IK targets using collected data
             ik_targets = self._ik_controller.compute_arm_targets(
                 current_time=self._sim_time,
-                current_joint_pos=ik_data['current_arm_joints'],
+                left_current_joints=ik_data['left_current_joints'],
+                right_current_joints=ik_data['right_current_joints'],
                 left_ee_pos=ik_data['left_ee_pos'],
                 left_ee_quat=ik_data['left_ee_quat'],
                 right_ee_pos=ik_data['right_ee_pos'],

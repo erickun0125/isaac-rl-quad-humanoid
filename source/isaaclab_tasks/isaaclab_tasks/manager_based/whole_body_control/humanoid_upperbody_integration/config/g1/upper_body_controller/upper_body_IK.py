@@ -20,21 +20,24 @@ from typing import Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
 from isaaclab.assets import Articulation
+from isaaclab.utils.math import subtract_frame_transforms, matrix_from_quat, quat_inv
 
 
 class IKDataCollector:
     """Collects all necessary data for IK computation in a modular way."""
     
-    def __init__(self, asset: Articulation, joint_group_indices: dict, device: str):
+    def __init__(self, asset: Articulation, joint_group_indices: dict, joint_group_names: dict, device: str):
         """Initialize IK data collector.
         
         Args:
             asset: Articulated robot asset
             joint_group_indices: Dictionary mapping joint groups to indices
+            joint_group_names: Dictionary mapping joint groups to names
             device: Computing device
         """
         self.asset = asset
         self.joint_group_indices = joint_group_indices
+        self.joint_group_names = joint_group_names
         self.device = device
         
         # Import JointGroup enum locally to avoid circular imports
@@ -49,11 +52,11 @@ class IKDataCollector:
     def _initialize_ee_body_ids(self):
         """Initialize end-effector body IDs."""
         try:
-            left_body_ids = self.asset.find_bodies("left_hand_thumb_0_link")[0]
+            left_body_ids = self.asset.find_bodies("left_wrist_yaw_link")[0]
             if len(left_body_ids) > 0:
                 self._left_ee_body_id = left_body_ids[0]
                 
-            right_body_ids = self.asset.find_bodies("right_hand_thumb_0_link")[0]
+            right_body_ids = self.asset.find_bodies("right_wrist_yaw_link")[0]
             if len(right_body_ids) > 0:
                 self._right_ee_body_id = right_body_ids[0]
         except (RuntimeError, IndexError, AttributeError) as e:
@@ -74,6 +77,35 @@ class IKDataCollector:
         else:
             return torch.zeros(self.asset.num_instances, 0, device=self.device)
     
+    def get_current_joint_positions_by_side(self, side: str) -> torch.Tensor:
+        """Get current joint positions for one side of the arm.
+        
+        Args:
+            side: "left" or "right"
+            
+        Returns:
+            Current joint positions for the specified arm side (num_envs, 7)
+        """
+        # Get arm joint indices and names
+        arm_joint_indices = self.joint_group_indices[self.JointGroup.ARM]
+        arm_joint_names = self.joint_group_names[self.JointGroup.ARM]
+        
+        # Filter joint indices by side (left/right) based on joint names
+        side_joint_indices = []
+        for i, joint_name in enumerate(arm_joint_names):
+            if side == "left" and "left_" in joint_name:
+                side_joint_indices.append(arm_joint_indices[i])
+            elif side == "right" and "right_" in joint_name:
+                side_joint_indices.append(arm_joint_indices[i])
+        
+        # Convert to tensor and get joint positions
+        if side_joint_indices:
+            side_joint_indices = torch.tensor(side_joint_indices, dtype=torch.long, device=self.device)
+            return self.asset.data.joint_pos[:, side_joint_indices]
+        else:
+            # Return zeros if no joints found for this side
+            return torch.zeros(self.asset.num_instances, 7, device=self.device)
+    
     def get_end_effector_pose(self, side: str) -> tuple[torch.Tensor, torch.Tensor]:
         """Get current end-effector pose for the specified side.
         
@@ -82,14 +114,23 @@ class IKDataCollector:
             
         Returns:
             Tuple of (position, quaternion) tensors (num_envs, 3) and (num_envs, 4)
+            in the robot base frame (not world frame).
         """
         body_id = self._left_ee_body_id if side == "left" else self._right_ee_body_id
         
         if body_id is not None:
             try:
-                ee_pos = self.asset.data.body_pos_w[:, body_id]
-                ee_quat = self.asset.data.body_quat_w[:, body_id]
-                return ee_pos, ee_quat
+                # World-frame poses
+                ee_pos_w = self.asset.data.body_pos_w[:, body_id]
+                ee_quat_w = self.asset.data.body_quat_w[:, body_id]
+                root_pose_w = self.asset.data.root_pose_w
+                root_pos_w = root_pose_w[:, 0:3]
+                root_quat_w = root_pose_w[:, 3:7]
+                # Convert EE pose to base frame to match controller expectations
+                ee_pos_b, ee_quat_b = subtract_frame_transforms(
+                    root_pos_w, root_quat_w, ee_pos_w, ee_quat_w
+                )
+                return ee_pos_b, ee_quat_b
             except (RuntimeError, IndexError, AttributeError) as e:
                 print(f"[WARNING] Failed to get {side} end-effector pose: {e}")
         
@@ -113,19 +154,43 @@ class IKDataCollector:
             try:
                 # Get arm joint indices for this side
                 arm_joint_indices = self.joint_group_indices[self.JointGroup.ARM]
-                half_joints = len(arm_joint_indices) // 2
+                arm_joint_names = self.joint_group_names[self.JointGroup.ARM]
                 
-                if side == "left":
-                    side_joint_indices = arm_joint_indices[:half_joints]
+                # Filter joint indices by side (left/right) based on joint names
+                side_joint_indices = []
+                for i, joint_name in enumerate(arm_joint_names):
+                    if side == "left" and "left_" in joint_name:
+                        side_joint_indices.append(arm_joint_indices[i])
+                    elif side == "right" and "right_" in joint_name:
+                        side_joint_indices.append(arm_joint_indices[i])
+                
+                # Convert to tensor
+                side_joint_indices = torch.tensor(side_joint_indices, dtype=torch.long, device=self.device)
+                
+                # Get Jacobian using the root_physx_view API with specific EE body and joint indices
+                # Match tutorial logic: index shifts by -1 for fixed-base robots only
+                if getattr(self.asset, "is_fixed_base", False):
+                    ee_jacobi_idx = body_id - 1
                 else:
-                    side_joint_indices = arm_joint_indices[half_joints:]
+                    ee_jacobi_idx = body_id
                 
-                # Try to get Jacobian using the root_physx_view API
-                ee_jacobi_idx = body_id - 1
-                jacobian_w = self.asset.root_physx_view.get_jacobians()
+                # Get Jacobian for this specific EE body and arm joints (more efficient and accurate)
+                jacobian_w = self.asset.root_physx_view.get_jacobians()[:, ee_jacobi_idx, :, side_joint_indices]
                 
-                if jacobian_w is not None and jacobian_w.shape[-1] >= len(side_joint_indices):
-                    jacobian = jacobian_w[:, ee_jacobi_idx, :6, side_joint_indices]
+                if jacobian_w is not None and jacobian_w.shape[-2] >= 6 and jacobian_w.shape[-1] >= len(side_joint_indices):
+                    # Take only the 6DOF spatial Jacobian (position + orientation)
+                    jacobian = jacobian_w[:, :6, :]
+                    
+                    # Transform Jacobian from world frame to base frame
+                    # This matches the test_differential_ik.py and example code implementation
+                    root_pose_w = self.asset.data.root_pose_w
+                    base_rot = root_pose_w[:, 3:7]  # base quaternion in world frame
+                    base_rot_matrix = matrix_from_quat(quat_inv(base_rot))  # world->base rotation matrix
+                    
+                    # Apply rotation to both position (first 3 rows) and orientation (last 3 rows) parts
+                    jacobian[:, :3, :] = torch.bmm(base_rot_matrix, jacobian[:, :3, :])
+                    jacobian[:, 3:, :] = torch.bmm(base_rot_matrix, jacobian[:, 3:, :])
+                    
                     return jacobian
                 else:
                     raise RuntimeError("Jacobian computation via physx_view failed")
@@ -145,8 +210,9 @@ class IKDataCollector:
         """
         data = {}
         
-        # Get current arm joint positions
-        data['current_arm_joints'] = self.get_current_joint_positions(self.JointGroup.ARM)
+        # Get current arm joint positions separated by side
+        data['left_current_joints'] = self.get_current_joint_positions_by_side("left")
+        data['right_current_joints'] = self.get_current_joint_positions_by_side("right")
         
         # Get end-effector poses
         data['left_ee_pos'], data['left_ee_quat'] = self.get_end_effector_pose("left")
@@ -177,7 +243,7 @@ class CircularTrajectoryGenerator(TrajectoryGenerator):
     
     def __init__(
         self,
-        center: Tuple[float, float, float] = (0.3, 0.0, 0.3),
+        center: Tuple[float, float, float] = (0.3, 0.0, 0.2),
         radius: float = 0.1,
         frequency: float = 0.5,
         device: str = "cuda:0"
@@ -206,16 +272,62 @@ class CircularTrajectoryGenerator(TrajectoryGenerator):
         
         # Left and right hand targets (mirrored in Y)
         left_target = self.center.clone()
-        left_target[1] += y_offset + 0.2  # Offset for left side
+        left_target[1] += y_offset + 0.15  # Offset for left side
         left_target[2] += z_offset
         
         right_target = self.center.clone()
-        right_target[1] -= y_offset + 0.2  # Offset for right side (mirrored)
+        right_target[1] -= y_offset + 0.15  # Offset for right side (mirrored)
         right_target[2] += z_offset
         
         return {
             "left_ee_pos": left_target,
             "right_ee_pos": right_target,
+            "left_ee_quat": torch.tensor([0.0, 0.0, 0.0, 1.0], device=self.device),
+            "right_ee_quat": torch.tensor([0.0, 0.0, 0.0, 1.0], device=self.device),
+        }
+
+
+class FixedPointTrajectoryGenerator(TrajectoryGenerator):
+    """Generates fixed point targets for both end-effectors (arms extended forward)."""
+
+    def __init__(
+        self,
+        center: Tuple[float, float, float] = (0.4, 0.0, 0.6),
+        y_offset: float = 0.15,
+        left_point: Tuple[float, float, float] | None = None,
+        right_point: Tuple[float, float, float] | None = None,
+        device: str = "cuda:0",
+    ):
+        """Initialize fixed-point trajectory generator.
+
+        Args:
+            center: Base center point in robot base frame.
+            y_offset: Lateral separation applied as +y for left, -y for right.
+            left_point: Optional explicit 3D point for left EE. If provided, overrides center/y_offset.
+            right_point: Optional explicit 3D point for right EE. If provided, overrides center/y_offset.
+            device: Device for tensor operations.
+        """
+        self.center = torch.tensor(center, device=device)
+        self.y_offset = y_offset
+        self.left_point = torch.tensor(left_point, device=device) if left_point is not None else None
+        self.right_point = torch.tensor(right_point, device=device) if right_point is not None else None
+        self.device = device
+
+    def generate(self, current_time: float, **kwargs) -> Dict[str, torch.Tensor]:  # pylint: disable=unused-argument
+        """Generate fixed targets (time-invariant)."""
+        if self.left_point is not None and self.right_point is not None:
+            left_target = self.left_point.clone()
+            right_target = self.right_point.clone()
+        else:
+            left_target = self.center.clone()
+            left_target[1] += self.y_offset
+            right_target = self.center.clone()
+            right_target[1] -= self.y_offset
+
+        return {
+            "left_ee_pos": left_target,
+            "right_ee_pos": right_target,
+            # Orientation targets are included for completeness but may be unused in position-only mode
             "left_ee_quat": torch.tensor([0.0, 0.0, 0.0, 1.0], device=self.device),
             "right_ee_quat": torch.tensor([0.0, 0.0, 0.0, 1.0], device=self.device),
         }
@@ -246,17 +358,17 @@ class DifferentialIKSolver:
         
     def _setup_arm_controllers(self):
         """Setup differential IK controllers for left and right arms."""
-        # Configuration for left arm IK controller
+        # Configuration for left arm IK controller (position-only command)
         left_arm_cfg = DifferentialIKControllerCfg(
-            command_type="pose",
+            command_type="position",
             use_relative_mode=False,
             ik_method="dls",  # Damped least squares for better stability
             ik_params={"lambda_val": 0.01}
         )
         
-        # Configuration for right arm IK controller  
+        # Configuration for right arm IK controller (position-only command) 
         right_arm_cfg = DifferentialIKControllerCfg(
-            command_type="pose",
+            command_type="position",
             use_relative_mode=False,
             ik_method="dls",  # Damped least squares for better stability
             ik_params={"lambda_val": 0.01}
@@ -269,7 +381,6 @@ class DifferentialIKSolver:
     def solve_arm_ik(
         self, 
         target_pos: torch.Tensor, 
-        target_quat: torch.Tensor,
         is_left_arm: bool = True,
         current_joint_pos: Optional[torch.Tensor] = None,
         jacobian: Optional[torch.Tensor] = None,
@@ -280,7 +391,6 @@ class DifferentialIKSolver:
         
         Args:
             target_pos: Target end-effector position (batch_size, 3)
-            target_quat: Target end-effector orientation (batch_size, 4)
             is_left_arm: Whether this is the left arm
             current_joint_pos: Current joint positions (batch_size, 7)
             jacobian: Current Jacobian matrix (batch_size, 6, 7)
@@ -297,14 +407,13 @@ class DifferentialIKSolver:
             batch_size = target_pos.shape[0] if target_pos.dim() > 1 else 1
             return torch.zeros(batch_size, 7, device=self.device)
         
-        # Create pose command (position + quaternion)
-        pose_command = torch.cat([target_pos, target_quat], dim=-1)
-        
         # Select appropriate IK controller
         ik_controller = self.left_arm_ik if is_left_arm else self.right_arm_ik
         
-        # Set command for the IK controller
-        ik_controller.set_command(pose_command, ee_pos, ee_quat)
+        # Set command for the IK controller (position-only)
+        # Note: For position command type, ee_quat is still required by controller API
+        # target_quat is not used in this implementation
+        ik_controller.set_command(target_pos, ee_pos, ee_quat)
         
         # Validate Jacobian shape: expected (batch_size, 6, 7)
         if jacobian.shape[-2] != 6 or jacobian.shape[-1] != 7:
@@ -393,7 +502,8 @@ class UpperBodyIKController:
     def compute_arm_targets(
         self, 
         current_time: float, 
-        current_joint_pos: Optional[torch.Tensor] = None,
+        left_current_joints: Optional[torch.Tensor] = None,
+        right_current_joints: Optional[torch.Tensor] = None,
         left_ee_pos: Optional[torch.Tensor] = None,
         left_ee_quat: Optional[torch.Tensor] = None,
         right_ee_pos: Optional[torch.Tensor] = None,
@@ -405,7 +515,8 @@ class UpperBodyIKController:
         
         Args:
             current_time: Current simulation time
-            current_joint_pos: Current joint positions (num_envs, 14) - 14 arm joints
+            left_current_joints: Current left arm joint positions (num_envs, 7)
+            right_current_joints: Current right arm joint positions (num_envs, 7)
             left_ee_pos: Current left end-effector position (num_envs, 3)
             left_ee_quat: Current left end-effector orientation (num_envs, 4)
             right_ee_pos: Current right end-effector position (num_envs, 3)
@@ -426,20 +537,19 @@ class UpperBodyIKController:
         right_target_quat = trajectory_targets["right_ee_quat"]  # (4,)
         
         # Check if required inputs are available for differential IK
-        if (current_joint_pos is None or left_ee_pos is None or right_ee_pos is None or 
+        if (left_current_joints is None or right_current_joints is None or 
+            left_ee_pos is None or right_ee_pos is None or 
             left_jacobian is None or right_jacobian is None):
             print("[WARNING] Required inputs for differential IK missing. Using default pose.")
             return self._get_default_arm_pose()
         
         # Ensure correct tensor shapes
-        if current_joint_pos.dim() == 1:
-            current_joint_pos = current_joint_pos.unsqueeze(0)
+        if left_current_joints.dim() == 1:
+            left_current_joints = left_current_joints.unsqueeze(0)
+        if right_current_joints.dim() == 1:
+            right_current_joints = right_current_joints.unsqueeze(0)
         
-        batch_size = current_joint_pos.shape[0]
-        
-        # Split arm joint positions: left (first 7) and right (last 7) 
-        left_current_joints = current_joint_pos[:, :7]  # (batch_size, 7)
-        right_current_joints = current_joint_pos[:, 7:14]  # (batch_size, 7)
+        batch_size = left_current_joints.shape[0]
         
         # Expand target poses to batch size
         left_target_pos_batch = left_target_pos.unsqueeze(0).expand(batch_size, -1)
@@ -450,7 +560,6 @@ class UpperBodyIKController:
         # Compute IK for left arm
         left_arm_targets = self.ik_solver.solve_arm_ik(
             target_pos=left_target_pos_batch,
-            target_quat=left_target_quat_batch,
             is_left_arm=True,
             current_joint_pos=left_current_joints,
             jacobian=left_jacobian,
@@ -461,7 +570,6 @@ class UpperBodyIKController:
         # Compute IK for right arm
         right_arm_targets = self.ik_solver.solve_arm_ik(
             target_pos=right_target_pos_batch,
-            target_quat=right_target_quat_batch,
             is_left_arm=False,
             current_joint_pos=right_current_joints,
             jacobian=right_jacobian,
