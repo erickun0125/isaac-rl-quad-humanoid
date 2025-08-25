@@ -94,44 +94,86 @@ def reward_weight_curriculum(
     env_ids: Sequence[int],
     reward_term_names: list[str] | None = None,
     tracking_reward_name: str = "track_lin_vel_xy_exp",
-    min_weight: float = -0.01,
+    min_ratio: float = 0.1,
+    max_ratio: float = 1.0,
     reward_threshold: float = 0.7,
-    weight_decay_step: float = 0.01,
+    ratio_step: float = 0.05,
 ) -> torch.Tensor:
-    """Curriculum to decrease joint deviation penalty weights based on velocity tracking performance.
+    """Curriculum to adjust reward weights based on tracking performance using a ratio system.
+    
+    This function adjusts weights using a ratio system:
+    - Original weight values from config are multiplied by a ratio (min_ratio ~ max_ratio)
+    - If performance is good: ratio changes by ratio_step (clipped to min_ratio ~ max_ratio)
+    - If performance is poor: ratio remains unchanged (no rollback)
     
     Args:
         env: The environment instance.
         env_ids: Environment IDs to apply curriculum to.
-        reward_term_names: List of joint deviation reward term names to modify.
+        reward_term_names: List of reward term names to modify.
         tracking_reward_name: Name of the tracking reward term to monitor.
-        min_weight: Minimum weight for joint deviation penalties (negative value).
+        min_ratio: Minimum ratio for weight scaling.
+        max_ratio: Maximum ratio for weight scaling.
         reward_threshold: Reward threshold as ratio of reward weight to trigger curriculum.
-        weight_decay_step: Step size for decreasing penalty weights.
+        ratio_step: Step size for adjusting the weight ratio (can be positive or negative).
     
     Returns:
-        Current joint deviation weight.
+        Current weight ratio for the first reward term.
     """
     if reward_term_names is None:
         reward_term_names = ["joint_deviation_hip", "joint_deviation_arms", "joint_deviation_torso"]
+    
     tracking_reward_term = env.reward_manager.get_term_cfg(tracking_reward_name)
     tracking_reward = torch.mean(env.reward_manager._episode_sums[tracking_reward_name][env_ids]) / env.max_episode_length_s
 
+    # Initialize curriculum state storage if not exists
+    if not hasattr(env, '_reward_weight_curriculum_state'):
+        env._reward_weight_curriculum_state = {}
+
     # Update curriculum every episode
     if env.common_step_counter % env.max_episode_length == 0:
-        if tracking_reward > tracking_reward_term.weight * reward_threshold:
-            # Reduce joint deviation penalty weights (make them less negative)
-            for term_name in reward_term_names:
-                if term_name in env.reward_manager._term_cfgs:
-                    current_weight = env.reward_manager._term_cfgs[term_name].weight
-                    new_weight = min(current_weight + weight_decay_step, min_weight)
-                    env.reward_manager._term_cfgs[term_name].weight = new_weight
+        # Calculate performance ratio
+        performance_ratio = tracking_reward / abs(tracking_reward_term.weight)
+        
+        for term_name in reward_term_names:
+            term_idx = env.reward_manager._term_names.index(term_name) if term_name in env.reward_manager._term_names else -1
+            if term_idx >= 0:
+                term_cfg = env.reward_manager._term_cfgs[term_idx]
+                
+                # Initialize state for this term if not exists
+                if term_name not in env._reward_weight_curriculum_state:
+                    # Set initial ratio based on ratio_step direction
+                    if ratio_step >= 0:
+                        initial_ratio = min_ratio  # Start from minimum if increasing
+                    else:
+                        initial_ratio = max_ratio  # Start from maximum if decreasing
+                    
+                    env._reward_weight_curriculum_state[term_name] = {
+                        'original_weight': term_cfg.weight,
+                        'current_ratio': initial_ratio
+                    }
+                    
+                    # Apply initial ratio to the weight
+                    term_cfg.weight = term_cfg.weight * initial_ratio
+                
+                state = env._reward_weight_curriculum_state[term_name]
+                current_ratio = state['current_ratio']
+                
+                if performance_ratio > reward_threshold:
+                    # Good performance: adjust ratio by ratio_step (can be positive or negative)
+                    new_ratio = current_ratio + ratio_step
+                    # Clip to valid range
+                    new_ratio = max(min(new_ratio, max_ratio), min_ratio)
+                    
+                    # Update state and apply new weight
+                    state['current_ratio'] = new_ratio
+                    term_cfg.weight = state['original_weight'] * new_ratio
+                # Poor performance: maintain current ratio (no change)
 
-    # Return current weight of first joint deviation term
-    if reward_term_names[0] in env.reward_manager._term_cfgs:
-        return torch.tensor(env.reward_manager._term_cfgs[reward_term_names[0]].weight, device=env.device)
+    # Return current ratio of first reward term
+    if reward_term_names[0] in env._reward_weight_curriculum_state:
+        return torch.tensor(env._reward_weight_curriculum_state[reward_term_names[0]]['current_ratio'], device=env.device)
     else:
-        return torch.tensor(min_weight, device=env.device)
+        return torch.tensor(1.0, device=env.device)
 
 
 def disturbance_range_curriculum(
@@ -322,3 +364,152 @@ def foot_clearance_reward(
     reward = torch.exp(-total_error / std)  # [num_envs]
     
     return reward
+
+
+def torso_orientation_l2(
+    env: "ManagerBasedRLEnv",
+    asset_cfg: "SceneEntityCfg",
+) -> torch.Tensor:
+    """Penalize non-flat torso orientation using L2 squared kernel.
+    
+    This is computed by penalizing the xy-components of the projected gravity vector
+    for the specified torso body (e.g., torso_link).
+    
+    Args:
+        env: The environment instance.
+        asset_cfg: Scene entity configuration for the torso body.
+    
+    Returns:
+        Orientation penalty for each environment.
+    """
+    # Get the robot asset
+    asset = env.scene[asset_cfg.name]
+    
+    # Get torso body orientation in world frame
+    torso_quat_w = asset.data.body_quat_w[:, asset_cfg.body_ids[0], :]  # [num_envs, 4]
+    
+    # Convert quaternion to rotation matrix to get gravity projection
+    
+    # Transform gravity to torso body frame
+    # For quaternion [w, x, y, z], we need to rotate the gravity vector
+    quat_w, quat_x, quat_y, quat_z = torso_quat_w[:, 0], torso_quat_w[:, 1], torso_quat_w[:, 2], torso_quat_w[:, 3]
+    
+    # Rotation matrix from quaternion (world to body frame)
+    # We only need the third column of rotation matrix (z-axis in body frame)
+    r13 = 2 * (quat_x * quat_z + quat_w * quat_y)  # x-component of z-axis in body frame
+    r23 = 2 * (quat_y * quat_z - quat_w * quat_x)  # y-component of z-axis in body frame
+    r33 = quat_w**2 - quat_x**2 - quat_y**2 + quat_z**2  # z-component of z-axis in body frame
+    
+    # Projected gravity in body frame (gravity dot with body z-axis)
+    projected_gravity_b = torch.stack([r13, r23, r33], dim=1)
+    
+    # Penalize xy-components (should be close to zero for flat orientation)
+    return torch.sum(torch.square(projected_gravity_b[:, :2]), dim=1)
+
+def torso_backward_tilt_penalty(
+    env: "ManagerBasedRLEnv",
+    asset_cfg: "SceneEntityCfg",
+) -> torch.Tensor:
+    """Penalize backward tilt (negative pitch) of the torso using L2 squared kernel.
+    
+    This function only penalizes when the torso tilts backward (negative rotation around y-axis
+    in body frame). Forward tilt (positive pitch) is allowed and not penalized.
+    
+    Args:
+        env: The environment instance.
+        asset_cfg: Scene entity configuration for the torso body.
+    
+    Returns:
+        Backward tilt penalty for each environment.
+    """
+    # Get the robot asset
+    asset = env.scene[asset_cfg.name]
+    
+    # Get torso body orientation in world frame
+    torso_quat_w = asset.data.body_quat_w[:, asset_cfg.body_ids[0], :]  # [num_envs, 4]
+    
+    # Extract quaternion components [w, x, y, z]
+    quat_w, quat_x, quat_y, quat_z = torso_quat_w[:, 0], torso_quat_w[:, 1], torso_quat_w[:, 2], torso_quat_w[:, 3]
+    
+    # Calculate pitch angle from quaternion
+    # pitch = atan2(2*(w*y - x*z), 1 - 2*(y^2 + z^2))
+    # For small angles, we can use the approximation: pitch ≈ 2*(w*y - x*z)
+    pitch_approx = 2 * (quat_w * quat_y - quat_x * quat_z)
+    
+    # Alternative: More accurate pitch calculation
+    # sin_pitch = 2 * (quat_w * quat_y - quat_x * quat_z)
+    # cos_pitch = 1 - 2 * (quat_y**2 + quat_z**2)
+    # pitch = torch.atan2(sin_pitch, cos_pitch)
+    
+    # Only penalize negative pitch (backward tilt)
+    # Use ReLU to only consider negative values (backward tilt)
+    backward_tilt = torch.clamp(-pitch_approx, min=0.0)  # Only negative pitch values
+    
+    # Return L2 squared penalty
+    return backward_tilt
+
+# Observations for Loco-Manipulation
+
+def foot_contact(
+    env: "ManagerBasedRLEnv",
+    sensor_name: str = "contact_forces",
+    threshold: float = 1.0,
+) -> torch.Tensor:
+    """Check if the feet are in contact with the ground.
+    
+    This function returns binary contact information for left and right feet
+    based on contact force measurements from the contact sensor at current timestep.
+    
+    Args:
+        env: The environment instance.
+        sensor_name: Name of the contact sensor in the scene.
+        threshold: Force threshold to determine contact (N).
+    
+    Returns:
+        Contact status tensor of shape [num_envs, 2] where:
+        - Column 0: Left foot contact (1.0 if in contact, 0.0 otherwise)
+        - Column 1: Right foot contact (1.0 if in contact, 0.0 otherwise)
+    """
+    # Get contact sensor
+    contact_sensor = env.scene.sensors[sensor_name]
+    
+    # Get current contact forces (no history needed)
+    net_contact_forces = contact_sensor.data.net_forces_w  # [num_envs, num_bodies, 3]
+    
+    # Calculate force magnitudes
+    force_magnitudes = torch.norm(net_contact_forces, dim=-1)  # [num_envs, num_bodies]
+    
+    # Get body names from the sensor (not from cfg)
+    body_names = contact_sensor.body_names
+    
+    left_foot_idx = None
+    right_foot_idx = None
+    
+    # Find body indices for ankle roll links
+    for i, body_name in enumerate(body_names):
+        if "left_ankle_roll_link" in body_name:
+            left_foot_idx = i
+        elif "right_ankle_roll_link" in body_name:
+            right_foot_idx = i
+    
+    # If we can't find specific indices, try pattern matching
+    if left_foot_idx is None or right_foot_idx is None:
+        # Try to find indices by pattern matching with the actual body IDs
+        import re
+        for i, body_name in enumerate(body_names):
+            if re.match(r".*left.*ankle_roll_link", body_name):
+                left_foot_idx = i
+            elif re.match(r".*right.*ankle_roll_link", body_name):
+                right_foot_idx = i
+    
+    # Create contact tensor
+    num_envs = env.num_envs
+    foot_contacts = torch.zeros(num_envs, 2, device=env.device)
+    
+    if left_foot_idx is not None:
+        foot_contacts[:, 0] = (force_magnitudes[:, left_foot_idx] > threshold).float()
+    
+    if right_foot_idx is not None:
+        foot_contacts[:, 1] = (force_magnitudes[:, right_foot_idx] > threshold).float()
+    
+    return foot_contacts
