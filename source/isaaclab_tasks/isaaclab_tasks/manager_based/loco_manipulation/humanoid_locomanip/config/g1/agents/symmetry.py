@@ -15,12 +15,13 @@ def g1_locomanip_symmetry(env, obs, actions, obs_type="policy"):  # noqa: ARG001
     Critic obs structure:
     - base_lin_vel: 3 dims (0:3)
     - base_pos_z: 1 dim (3:4)
-    - base_ang_vel: 3 dims (4:7)
-    - projected_gravity: 3 dims (7:10)
-    - velocity_commands: 3 dims (10:13)
-    - joint_pos: 87 dims (13:100) - history=3, flatten (29 joints * 3)
-    - joint_vel: 58 dims (100:158) - history=2, flatten (29 joints * 2)
-    - actions: 29 dims (158:187) - history=1, flatten (29 joints * 1)
+    - foot_contact: 2 dims (4:6) - left, right foot contact
+    - base_ang_vel: 3 dims (6:9)
+    - projected_gravity: 3 dims (9:12)
+    - velocity_commands: 3 dims (12:15)
+    - joint_pos: 87 dims (15:102) - history=3, flatten (29 joints * 3)
+    - joint_vel: 58 dims (102:160) - history=2, flatten (29 joints * 2)
+    - actions: 29 dims (160:189) - history=1, flatten (29 joints * 1)
     
     G1 Joint Order (29 DOF) - BASED ON CONTROLLED_JOINTS WITH preserve_order=True:
     LEG_JOINT_NAMES + WAIST_JOINT_NAMES + ARM_JOINT_NAMES
@@ -104,25 +105,30 @@ def mirror_observations(obs, obs_type):
         
         # base_pos_z (3:4): no change needed
         
-        # base_ang_vel (4:7): (x, y, z) -> (-x, y, -z)
-        mirrored[:, 4] *= -1  # ang_vel_x
-        mirrored[:, 6] *= -1  # ang_vel_z
+        # foot_contact (4:6): (left, right) -> (right, left) - swap left/right contact
+        temp_left_contact = mirrored[:, 4].clone()
+        mirrored[:, 4] = mirrored[:, 5]  # left = right
+        mirrored[:, 5] = temp_left_contact  # right = left
         
-        # projected_gravity (7:10): (x, y, z) -> (x, -y, z)
-        mirrored[:, 8] *= -1  # gravity_y
+        # base_ang_vel (6:9): (x, y, z) -> (-x, y, -z)
+        mirrored[:, 6] *= -1  # ang_vel_x
+        mirrored[:, 8] *= -1  # ang_vel_z
         
-        # velocity_commands (10:13): (vx, vy, vyaw) -> (vx, -vy, -vyaw)
-        mirrored[:, 11] *= -1  # vy
-        mirrored[:, 12] *= -1  # vyaw
+        # projected_gravity (9:12): (x, y, z) -> (x, -y, z)
+        mirrored[:, 10] *= -1  # gravity_y
         
-        # joint_pos with history (13:100): 87 dims = 29 joints * 3 history
-        mirror_joint_history(mirrored, start_idx=13, joint_dim=29, history_len=3)
+        # velocity_commands (12:15): (vx, vy, vyaw) -> (vx, -vy, -vyaw)
+        mirrored[:, 13] *= -1  # vy
+        mirrored[:, 14] *= -1  # vyaw
         
-        # joint_vel with history (100:158): 58 dims = 29 joints * 2 history
-        mirror_joint_history(mirrored, start_idx=100, joint_dim=29, history_len=2)
+        # joint_pos with history (15:102): 87 dims = 29 joints * 3 history
+        mirror_joint_history(mirrored, start_idx=15, joint_dim=29, history_len=3)
         
-        # actions with history (158:187): 29 dims = 29 joints * 1 history
-        mirror_joint_history(mirrored, start_idx=158, joint_dim=29, history_len=1)
+        # joint_vel with history (102:160): 58 dims = 29 joints * 2 history
+        mirror_joint_history(mirrored, start_idx=102, joint_dim=29, history_len=2)
+        
+        # actions with history (160:189): 29 dims = 29 joints * 1 history
+        mirror_joint_history(mirrored, start_idx=160, joint_dim=29, history_len=1)
     
     return mirrored
 
@@ -334,7 +340,7 @@ if __name__ == "__main__":
     print(f"Mirrored actions shape: {mirrored_actions.shape}")
     
     # Critic observation test (estimated dimensions)
-    critic_obs_dim = 187  # 3 + 1 + 3 + 3 + 3 + 87 + 58 + 29
+    critic_obs_dim = 189  # 3 + 1 + 2 + 3 + 3 + 3 + 87 + 58 + 29
     critic_obs = torch.randn(batch_size, critic_obs_dim)
     mirrored_critic_obs, _ = g1_locomanip_symmetry(
         env=None, obs=critic_obs, actions=None, obs_type="critic"
@@ -384,6 +390,7 @@ if __name__ == "__main__":
     # Note: Adjust observation dimensions based on actual environment setup:
     # - Policy obs: base_ang_vel(3) + projected_gravity(3) + velocity_commands(3) + 
     #               joint_pos_history(29*3) + joint_vel_history(29*2) + action_history(29*1)
-    # - Critic obs: base_lin_vel(3) + base_pos_z(1) + base_ang_vel(3) + projected_gravity(3) +
-    #               velocity_commands(3) + joint_pos_history(29*3) + joint_vel_history(29*2) + action_history(29*1)
+    # - Critic obs: base_lin_vel(3) + base_pos_z(1) + foot_contact(2) + base_ang_vel(3) + 
+    #               projected_gravity(3) + velocity_commands(3) + joint_pos_history(29*3) + 
+    #               joint_vel_history(29*2) + action_history(29*1)
     """)

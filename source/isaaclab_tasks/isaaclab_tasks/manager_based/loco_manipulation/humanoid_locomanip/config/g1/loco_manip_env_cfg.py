@@ -165,8 +165,8 @@ class G1LocoManipRewardsCfg:
     # Velocity tracking rewards
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.0,
-        params={"command_name": "base_velocity", "std": math.sqrt(0.25)},
+        weight=1.25,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.16)},
     )
 
     track_ang_vel_z_exp = RewTerm(
@@ -264,6 +264,17 @@ class G1LocoManipRewardsCfg:
         },
     )    
 
+    joint_deviation_shoulder_roll = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-0.01,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[".*_shoulder_roll_joint"],
+            )
+        },
+    )        
+
     joint_deviation_torso = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.1,
@@ -273,7 +284,7 @@ class G1LocoManipRewardsCfg:
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
-        weight=-0.2,
+        weight=-0.5,
     )
 
     ang_vel_xy_l2 = RewTerm(
@@ -286,14 +297,30 @@ class G1LocoManipRewardsCfg:
         weight=-0.1,
     )
 
+    torso_orientation_l2 = RewTerm(
+        func=locomanip_mdp.torso_orientation_l2,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+        },
+    )
+
+    torso_backward_tilt_penalty = RewTerm(
+        func=locomanip_mdp.torso_backward_tilt_penalty,
+        weight=-0.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+        },
+    )
+
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=0.5,
+        weight=2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "command_name": "base_velocity",
-            "threshold": 0.5,
+            "threshold": 0.1,
         },
     )
 
@@ -308,12 +335,12 @@ class G1LocoManipRewardsCfg:
 
     foot_clearance = RewTerm(
         func=locomanip_mdp.foot_clearance_reward,
-        weight=0.2,
+        weight=0.25,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
-            "target_height": 0.1,
-            "std": 0.1,
-            "tanh_mult": 2.0,
+            "target_height": 0.2,
+            "std": 0.05,
+            "tanh_mult": 8.0,
         },
     )    
 
@@ -423,6 +450,13 @@ class G1LocoManipObservationsCfg:
         # Privileged base state information
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
         base_pos_z = ObsTerm(func=mdp.base_pos_z)
+        foot_contact = ObsTerm(
+            func=locomanip_mdp.foot_contact,
+            params={
+                "sensor_name": "contact_forces",
+                "threshold": 1.0,
+            },
+        )
 
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel,
@@ -480,7 +514,7 @@ class G1LocoManipCommandsCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.5, 1.0),
+            lin_vel_x=(-1.0, 1.5),
             lin_vel_y=(-0.5, 0.5),
             ang_vel_z=(-1.0, 1.0),
             heading=(-math.pi, math.pi),
@@ -521,6 +555,7 @@ class G1LocoManipCommandsCfg:
 @configclass
 class G1LocoManipEventsCfg:
     """Disturbance and domain-randomization events."""
+    
     reset_scene_to_default = EventTerm(
         func=mdp.reset_scene_to_default,
         mode="reset",
@@ -578,7 +613,7 @@ class G1LocoManipEventsCfg:
             "torque_range": (-1.0, 1.0),
         },
     )
-    '''
+    
 
     torso_wrench = EventTerm(
         func=mdp.apply_external_force_torque,
@@ -590,7 +625,7 @@ class G1LocoManipEventsCfg:
             "torque_range": (-1.0, 1.0),
         },
     )
-    
+    '''
     # push the base to simulate a pushing force
     push_base = EventTerm(
         func=mdp.push_by_setting_velocity,
@@ -598,15 +633,16 @@ class G1LocoManipEventsCfg:
         interval_range_s=(5.0, 15.0),
         params={
             "velocity_range": {
-                "x": (-0.1, 0.1),
-                "y": (-0.1, 0.1),
+                "x": (-0.2, 0.2),
+                "y": (-0.2, 0.2),
                 "z": (-0.1, 0.1),
-                "roll": (-0.1, 0.1),
-                "pitch": (-0.1, 0.1),
-                "yaw": (-0.1, 0.1),
+                "roll": (-0.2, 0.2),
+                "pitch": (-0.2, 0.2),
+                "yaw": (-0.2, 0.2),
             },
         },
     )
+    
     # randomize the physics material of the robot.
     physics_material = EventTerm(
         func=mdp.randomize_rigid_body_material,
@@ -661,7 +697,7 @@ class G1LocoManipTerminationsCfg:
 
     base_height = TermTerm(
         func=mdp.root_height_below_minimum,
-        params={"minimum_height": 0.54},
+        params={"minimum_height": 0.52},
     )    
     
     base_orientation = TermTerm(
@@ -692,7 +728,46 @@ class G1LocoManipCurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+
+    # Walking reward weight curriculum - increase the weight of the walking reward
+    walking_reward_curriculum = CurrTerm(
+        func=locomanip_mdp.reward_weight_curriculum,
+        params={
+            "reward_term_names": ["feet_air_time", "feet_slide", "foot_clearance"],
+            "tracking_reward_name": "track_lin_vel_xy_exp",
+            "min_ratio": 0.1,
+            "max_ratio": 1.0,
+            "reward_threshold": 0.75,
+            "ratio_step": 0.1,
+        }
+    )    
+
+    # Stability reward weight curriculum - increase the weight of the stability reward
+    stability_reward_curriculum = CurrTerm(
+        func=locomanip_mdp.reward_weight_curriculum,
+        params={
+            "reward_term_names": ["lin_vel_z_l2", "ang_vel_xy_l2"],
+            "tracking_reward_name": "track_lin_vel_xy_exp",
+            "min_ratio": 0.1,
+            "max_ratio": 1.0,
+            "reward_threshold": 0.75,
+            "ratio_step": 0.05,
+        }
+    )
     
+    # Joint deviation weight curriculum - gradually decrease penalty weights
+    joint_deviation_curriculum = CurrTerm(
+        func=locomanip_mdp.reward_weight_curriculum,
+        params={
+            "reward_term_names": ["joint_deviation_arms", "joint_deviation_hip"],
+            "tracking_reward_name": "track_lin_vel_xy_exp",
+            "min_ratio": 0.25,
+            "max_ratio": 1.0,
+            "reward_threshold": 0.8,
+            "ratio_step": -0.01,
+        }
+    )    
+    '''
     # Velocity command curriculum - gradually increase velocity ranges
     velocity_curriculum = CurrTerm(
         func=locomanip_mdp.velocity_range_curriculum,
@@ -706,19 +781,7 @@ class G1LocoManipCurriculumCfg:
             "delta_step": 0.1,
         }
     )
-    
-    # Joint deviation weight curriculum - gradually decrease penalty weights
-    joint_deviation_curriculum = CurrTerm(
-        func=locomanip_mdp.reward_weight_curriculum,
-        params={
-            "reward_term_names": ["joint_deviation_arms"],
-            "tracking_reward_name": "track_ang_vel_z_exp",
-            "min_weight": -0.01,
-            "reward_threshold": 0.8,
-            "weight_decay_step": 0.01,
-        }
-    )
-    
+
     # Disturbance curriculum - gradually increase both push force and external force intensity based on termination rate and reward performance
     disturbance_curriculum = CurrTerm(
         func=locomanip_mdp.disturbance_range_curriculum,
@@ -736,8 +799,7 @@ class G1LocoManipCurriculumCfg:
             "force_increase_step": 0.2,
         }
     )
-
-
+    '''
 @configclass
 class G1LocoManipEnvCfg(ManagerBasedRLEnvCfg):
     """Environment configuration for G1 loco-manipulation."""
