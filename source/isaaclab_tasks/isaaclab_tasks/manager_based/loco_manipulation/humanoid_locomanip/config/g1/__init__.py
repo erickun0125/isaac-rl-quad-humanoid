@@ -32,3 +32,24 @@ gym.register(
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.loco_manip_rsl_rl_ppo_cfg:G1LocoManipPPORunnerCfg",
     },
 )
+
+gym.register(
+    id="Isaac-LocoManip-EE-G1-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.loco_manip_with_ee_env_cfg:G1LocoManipEEEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.loco_manip_rsl_rl_ppo_cfg_with_ee:G1LocoManipPPORunnerCfgWithEE",
+    },
+)
+
+
+gym.register(
+    id="Isaac-LocoManip-EE-G1-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.loco_manip_with_ee_env_cfg:G1LocoManipEEEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.loco_manip_rsl_rl_ppo_cfg_with_ee:G1LocoManipPPORunnerCfgWithEE",
+    },
+)

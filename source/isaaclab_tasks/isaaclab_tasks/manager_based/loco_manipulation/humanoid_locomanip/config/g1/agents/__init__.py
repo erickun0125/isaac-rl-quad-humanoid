@@ -6,3 +6,4 @@
 """Agents for Unitree G1 Humanoid Locomanipulation tasks."""
 
 from .loco_manip_rsl_rl_ppo_cfg import *
+from .loco_manip_rsl_rl_ppo_cfg_with_ee import *
