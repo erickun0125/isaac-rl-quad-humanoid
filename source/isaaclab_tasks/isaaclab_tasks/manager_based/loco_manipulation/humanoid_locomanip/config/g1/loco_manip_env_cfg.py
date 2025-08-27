@@ -296,7 +296,7 @@ class G1LocoManipRewardsCfg:
         func=mdp.flat_orientation_l2,
         weight=-0.1,
     )
-
+    # torso_link is the root link, so it is same as the base orientation
     torso_orientation_l2 = RewTerm(
         func=locomanip_mdp.torso_orientation_l2,
         weight=-0.1,
@@ -661,7 +661,7 @@ class G1LocoManipEventsCfg:
         func=mdp.randomize_rigid_body_mass,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"),
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
             "mass_distribution_params": (-5.0, 5.0),
             "operation": "add",
         },
@@ -672,7 +672,7 @@ class G1LocoManipEventsCfg:
         func=mdp.randomize_rigid_body_com,
         mode="startup",
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names="pelvis"),
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
             "com_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "z": (-0.01, 0.01)},
         },
     )
