@@ -162,30 +162,25 @@ class G1LocoManipSceneCfg(InteractiveSceneCfg):
 class G1LocoManipRewardsCfg:
     """Reward terms for the G1 loco-manipulation task."""
 
+    # alive reward
+    alive_reward = RewTerm(
+        func=mdp.is_alive,
+        weight=10.0,
+    )
+
     # Velocity tracking rewards
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.25,
+        weight=1.5,
         params={"command_name": "base_velocity", "std": math.sqrt(0.16)},
-    )
-
-    track_lin_vel_xy_exp_fine_grained = RewTerm(
-        func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.0,
-        params={"command_name": "base_velocity", "std": math.sqrt(0.04)},
     )
 
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
-        weight=2.0,
-        params={"command_name": "base_velocity", "std": math.sqrt(0.09)},
+        weight=3.0,
+        params={"command_name": "base_velocity", "std": math.sqrt(0.16)},
     )
 
-    track_ang_vel_z_exp_fine_grained = RewTerm(
-        func=mdp.track_ang_vel_z_world_exp,
-        weight=1.0,
-        params={"command_name": "base_velocity", "std": math.sqrt(0.04)},
-    )
 
     # Termination & Undesired Contacts penalty
     termination_penalty = RewTerm(
@@ -197,7 +192,7 @@ class G1LocoManipRewardsCfg:
     # End-effector tracking rewards
     left_ee_pos_tracking = RewTerm(
         func=manipulation_mdp.position_command_error,
-        weight=-5.0,
+        weight=-3.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
             "command_name": "left_ee_pose",
@@ -216,7 +211,7 @@ class G1LocoManipRewardsCfg:
 
     left_end_effector_orientation_tracking = RewTerm(
         func=manipulation_mdp.orientation_command_error,
-        weight=-0.2,
+        weight=-2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="left_wrist_yaw_link"),
             "command_name": "left_ee_pose",
@@ -225,7 +220,7 @@ class G1LocoManipRewardsCfg:
 
     right_ee_pos_tracking = RewTerm(
         func=manipulation_mdp.position_command_error,
-        weight=-5.0,
+        weight=-3.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="right_wrist_yaw_link"),
             "command_name": "right_ee_pose",
@@ -244,7 +239,7 @@ class G1LocoManipRewardsCfg:
 
     right_end_effector_orientation_tracking = RewTerm(
         func=manipulation_mdp.orientation_command_error,
-        weight=-0.2,
+        weight=-2.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="right_wrist_yaw_link"),
             "command_name": "right_ee_pose",
@@ -261,7 +256,7 @@ class G1LocoManipRewardsCfg:
     # Pose rewards
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.1,
+        weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
     )
 
@@ -290,17 +285,17 @@ class G1LocoManipRewardsCfg:
 
     ang_vel_xy_l2 = RewTerm(
         func=mdp.ang_vel_xy_l2,
-        weight=-0.05,
+        weight=-0.2,
     )
 
     flat_orientation_l2 = RewTerm(
         func=mdp.flat_orientation_l2,
-        weight=-0.1,
+        weight=-0.5,
     )
 
     torso_backward_tilt_penalty = RewTerm(
         func=locomanip_mdp.torso_backward_tilt_penalty,
-        weight=-0.5,
+        weight=-0.1,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
         },
@@ -309,17 +304,17 @@ class G1LocoManipRewardsCfg:
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=2.0,
+        weight=5.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "command_name": "base_velocity",
-            "threshold": 0.2,
+            "threshold": 0.4,
         },
     )
 
     feet_slide = RewTerm(
         func=mdp.feet_slide,
-        weight=-0.1,
+        weight=-0.2,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
@@ -349,10 +344,16 @@ class G1LocoManipRewardsCfg:
         weight=-1.0e-7,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
-
+    
+    joint_vel_l2 = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-1.0e-3,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
+    )
+    
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2,
-        weight=-0.003,
+        weight=-0.01,
     )
 
 
@@ -427,7 +428,7 @@ class G1LocoManipObservationsCfg:
         joint_vel = ObsTerm(
             func=mdp.joint_vel_rel,
             params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS, preserve_order=True)},
-            noise=Unoise(n_min=-1.5, n_max=1.5),
+            noise=Unoise(n_min=-1.0, n_max=1.0),
             history_length=2
         )
         actions = ObsTerm(func=mdp.last_action, history_length=1)
@@ -501,7 +502,7 @@ class G1LocoManipCommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(5.0, 5.0),
-        rel_standing_envs=0.5,
+        rel_standing_envs=0.2,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
@@ -523,9 +524,9 @@ class G1LocoManipCommandsCfg:
             pos_x=(0.10, 0.30),
             pos_y=(0.0, 0.30),
             pos_z=(-0.10, 0.30),
-            roll=(-0.2, 0.2),
-            pitch=(-0.2, 0.2),
-            yaw=(- 0.2, + 0.2),
+            roll=(-0.5, 0.5),
+            pitch=(-0.5, 0.5),
+            yaw=(- 0.5, + 0.5),
         ),
     )
 
@@ -538,9 +539,9 @@ class G1LocoManipCommandsCfg:
             pos_x=(0.10, 0.30),
             pos_y=(-0.30, -0.0),
             pos_z=(-0.10, 0.30),
-            roll=(-0.2, 0.2),
-            pitch=(-0.2, 0.2),
-            yaw=(- 0.2, + 0.2),
+            roll=(-0.5, 0.5),
+            pitch=(-0.5, 0.5),
+            yaw=(- 0.5, + 0.5),
         ),
     )
     
@@ -723,6 +724,20 @@ class G1LocoManipCurriculumCfg:
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
+
+    # alive reward weight curriculum
+    alive_reward_curriculum = CurrTerm(
+        func=locomanip_mdp.reward_weight_curriculum,
+        params={
+            "reward_term_names": ["alive_reward"],
+            "tracking_reward_name": "track_lin_vel_xy_exp",
+            "min_ratio": 0.1,
+            "max_ratio": 1.0,
+            "reward_threshold": 0.5,
+            "ratio_step": -0.9,
+        }
+    )
+    '''
     # Walking reward weight curriculum - increase the weight of the walking reward
     walking_reward_curriculum = CurrTerm(
         func=locomanip_mdp.reward_weight_curriculum,
@@ -761,6 +776,7 @@ class G1LocoManipCurriculumCfg:
             "ratio_step": 0.1,
         }
     )
+    '''
 
     '''
     # Velocity command curriculum - gradually increase velocity ranges
