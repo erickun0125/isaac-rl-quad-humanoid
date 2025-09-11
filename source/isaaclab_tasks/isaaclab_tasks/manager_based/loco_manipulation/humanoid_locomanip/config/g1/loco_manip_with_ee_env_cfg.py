@@ -277,6 +277,15 @@ class G1LocoManipRewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=WAIST_JOINT_NAMES)},
     )
 
+    torso_height_l2 = RewTerm(
+        func=mdp.base_height_l2,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
+            "target_height": 0.72,
+        },
+    )
+
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
