@@ -177,7 +177,7 @@ class G1LocoManipRewardsCfg:
 
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
-        weight=3.0,
+        weight=2.0,
         params={"command_name": "base_velocity", "std": math.sqrt(0.16)},
     )
 
@@ -289,12 +289,12 @@ class G1LocoManipRewardsCfg:
     # Stability rewards
     lin_vel_z_l2 = RewTerm(
         func=mdp.lin_vel_z_l2,
-        weight=-0.5,
+        weight=-1.0,
     )
 
     ang_vel_xy_l2 = RewTerm(
         func=mdp.ang_vel_xy_l2,
-        weight=-0.2,
+        weight=-0.4,
     )
 
     flat_orientation_l2 = RewTerm(
@@ -304,7 +304,7 @@ class G1LocoManipRewardsCfg:
 
     torso_backward_tilt_penalty = RewTerm(
         func=locomanip_mdp.torso_backward_tilt_penalty,
-        weight=-0.1,
+        weight=-0.05,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="torso_link"),
         },
@@ -313,7 +313,7 @@ class G1LocoManipRewardsCfg:
     # Walking rewards
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
-        weight=5.0,
+        weight=4.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "command_name": "base_velocity",
@@ -332,10 +332,10 @@ class G1LocoManipRewardsCfg:
 
     foot_clearance = RewTerm(
         func=locomanip_mdp.foot_clearance_reward,
-        weight=0.25,
+        weight=0.2,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
-            "target_height": 0.2,
+            "target_height": 0.1,
             "std": 0.05,
             "tanh_mult": 8.0,
         },
@@ -356,7 +356,7 @@ class G1LocoManipRewardsCfg:
     
     joint_vel_l2 = RewTerm(
         func=mdp.joint_vel_l2,
-        weight=-1.0e-3,
+        weight=-4.0e-3,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=CONTROLLED_JOINTS)},
     )
     
@@ -511,7 +511,7 @@ class G1LocoManipCommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(5.0, 5.0),
-        rel_standing_envs=0.2,
+        rel_standing_envs=0.3,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
