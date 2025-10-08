@@ -1,4 +1,5 @@
 import torch
+from tensordict import TensorDict
 
 def g1_locomanip_symmetry_with_ee(env, obs, actions, obs_type="policy"):  # noqa: ARG001
     """
@@ -54,15 +55,31 @@ def g1_locomanip_symmetry_with_ee(env, obs, actions, obs_type="policy"):  # noqa
     27: left_wrist_yaw_joint ↔ 28: right_wrist_yaw_joint (sign flip)
     """
     
-    # 1. Extend original + mirrored data
+    # Handle TensorDict observations
     if obs is not None:
-        obs_batch_size = obs.shape[0]
-        obs_mirrored = torch.cat([obs, obs.clone()], dim=0)
-        # Apply symmetry to the second half
-        obs_mirrored[obs_batch_size:] = mirror_observations_with_ee(obs_mirrored[obs_batch_size:], obs_type)
+        if isinstance(obs, TensorDict):
+            # Work with TensorDict directly - repeat to double the batch size
+            batch_size = obs.batch_size[0]
+            obs_aug = obs.repeat(2)
+            
+            # Original observations (first half)
+            obs_aug["policy"][:batch_size] = obs["policy"][:]
+            obs_aug["critic"][:batch_size] = obs["critic"][:]
+            
+            # Mirrored observations (second half)
+            obs_aug["policy"][batch_size:] = mirror_observations_with_ee(obs["policy"][:], "policy")
+            obs_aug["critic"][batch_size:] = mirror_observations_with_ee(obs["critic"][:], "critic")
+            
+            obs_mirrored = obs_aug
+        else:
+            # Handle regular tensor (backward compatibility)
+            obs_batch_size = obs.shape[0]
+            obs_mirrored = torch.cat([obs, obs.clone()], dim=0)
+            obs_mirrored[obs_batch_size:] = mirror_observations_with_ee(obs_mirrored[obs_batch_size:], obs_type)
     else:
         obs_mirrored = None
-        
+    
+    # Handle actions
     if actions is not None:
         action_batch_size = actions.shape[0]
         actions_mirrored = torch.cat([actions, actions.clone()], dim=0)
