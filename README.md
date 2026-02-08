@@ -1,4 +1,4 @@
-# Isaac RL: Quadruped & Humanoid Robot Learning
+# RL & Sim2Real: Quadruped & Humanoid Robot Learning
 
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.isaacsim.omniverse.nvidia.com/latest/index.html)
 [![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
@@ -9,7 +9,7 @@
 
 This repository contains custom RL environments and training pipelines for two Unitree robots:
 the **GO2 quadruped** (12 DOF) and the **G1 humanoid** (29 DOF). The GO2 work was developed
-during a **Robotics Engineer Internship at [Sequor Robotics](https://sequor.ai)** as demonstration
+during a **Robotics Engineer Internship at [Sequor Robotics]** as demonstration
 RL policies for the company's Sim-to-Real deployment pipeline. The G1 humanoid work extends
 this foundation to bipedal loco-manipulation and whole-body control.
 
