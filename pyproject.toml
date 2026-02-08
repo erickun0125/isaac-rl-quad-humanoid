@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "quad-humanoid-envs"
+version = "0.1.0"
+description = "Custom RL environments for Unitree GO2 and G1 robots on Isaac Lab"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.5.0",
+    "gymnasium>=0.29.0",
+    "tensordict",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pre-commit", "black", "isort", "flake8"]
+
+[tool.setuptools.packages.find]
+include = ["quad_humanoid_envs*"]
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

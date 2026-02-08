@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Isaac Sim
+_isaac_sim/
+logs/
+outputs/
+
+# IDE
+.vscode/
+.idea/
+
+# Assets (large binary files)
+*.usd
+*.usda
+*.urdf
+
+# OS
+.DS_Store
